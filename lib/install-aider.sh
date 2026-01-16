@@ -15,11 +15,8 @@ mkdir -p "$HOME/.ai-home/$TOOL"
 cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
 FROM ai-base:latest
 USER root
-ENV HOME=/home/agent
-# Install aider via pipx as root into agent's home
-RUN pipx install aider-chat
-RUN chown -R agent:agent /home/agent
-ENV PATH="/home/agent/.local/bin:$PATH"
+# Install aider via pipx and relocate binary to be non-shadowed
+RUN PIPX_BIN_DIR=/usr/local/bin PIPX_HOME=/opt/pipx pipx install aider-chat
 USER agent
 ENTRYPOINT ["aider"]
 EOF

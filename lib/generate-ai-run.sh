@@ -91,6 +91,31 @@ else
       mkdir -p "$CONFIG_DIR"
       CONFIG_MOUNT="-v $CONFIG_DIR:/home/agent/.config/droid:delegated"
       ;;
+    qoder)
+      CONFIG_DIR="$HOME/.config/qoder"
+      mkdir -p "$CONFIG_DIR"
+      CONFIG_MOUNT="-v $CONFIG_DIR:/home/agent/.config/qoder:delegated"
+      ;;
+    auggie)
+      CONFIG_DIR="$HOME/.config/auggie"
+      mkdir -p "$CONFIG_DIR"
+      CONFIG_MOUNT="-v $CONFIG_DIR:/home/agent/.config/auggie:delegated"
+      ;;
+    codebuddy)
+      CONFIG_DIR="$HOME/.config/codebuddy"
+      mkdir -p "$CONFIG_DIR"
+      CONFIG_MOUNT="-v $CONFIG_DIR:/home/agent/.config/codebuddy:delegated"
+      ;;
+    jules)
+      CONFIG_DIR="$HOME/.config/jules"
+      mkdir -p "$CONFIG_DIR"
+      CONFIG_MOUNT="-v $CONFIG_DIR:/home/agent/.config/jules:delegated"
+      ;;
+    shai)
+      CONFIG_DIR="$HOME/.config/shai"
+      mkdir -p "$CONFIG_DIR"
+      CONFIG_MOUNT="-v $CONFIG_DIR:/home/agent/.config/shai:delegated"
+      ;;
   esac
 fi
 
