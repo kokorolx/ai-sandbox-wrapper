@@ -24,21 +24,60 @@ echo "🚀 AI Sandbox Setup (Docker Desktop + Node 22 LTS)"
 
 WORKSPACES_FILE="$HOME/.ai-workspaces"
 
-echo "Enter workspace directories to whitelist (comma-separated):"
-echo "Example: $HOME/projects, $HOME/code, /opt/work"
-read -p "Workspaces: " WORKSPACE_INPUT
-
-# Parse and validate workspaces
-IFS=',' read -ra WORKSPACE_ARRAY <<< "$WORKSPACE_INPUT"
+# Handle whitelisted workspaces
 WORKSPACES=()
-for ws in "${WORKSPACE_ARRAY[@]}"; do
-  ws=$(echo "$ws" | xargs)  # trim whitespace
-  ws="${ws/#\~/$HOME}"      # expand ~ to $HOME
-  if [[ -n "$ws" ]]; then
-    mkdir -p "$ws"
-    WORKSPACES+=("$ws")
-  fi
-done
+
+if [[ -f "$WORKSPACES_FILE" ]]; then
+  echo "Existing whitelisted workspaces found:"
+  while IFS= read -r line; do
+    if [[ -n "$line" ]]; then
+      echo "  - $line"
+      WORKSPACES+=("$line")
+    fi
+  done < "$WORKSPACES_FILE"
+
+  echo ""
+  echo "Choose an option:"
+  echo "  [y] Reuse existing workspaces"
+  echo "  [a] Add more workspaces"
+  echo "  [n] Replace with new workspaces"
+  read -p "Option [y/a/n]: " WS_OPTION
+
+  case "$WS_OPTION" in
+    a)
+      echo "Enter additional workspace directories (comma-separated):"
+      read -p "Add Workspaces: " WORKSPACE_INPUT
+      ;;
+    n)
+      WORKSPACES=()
+      echo "Enter new workspace directories (comma-separated):"
+      read -p "Workspaces: " WORKSPACE_INPUT
+      ;;
+    *)
+      WORKSPACE_INPUT=""
+      ;;
+  esac
+else
+  echo "Enter workspace directories to whitelist (comma-separated):"
+  echo "Example: $HOME/projects, $HOME/code, /opt/work"
+  read -p "Workspaces: " WORKSPACE_INPUT
+fi
+
+# Parse and validate new workspaces if provided
+if [[ -n "$WORKSPACE_INPUT" ]]; then
+  IFS=',' read -ra WORKSPACE_ARRAY <<< "$WORKSPACE_INPUT"
+  for ws in "${WORKSPACE_ARRAY[@]}"; do
+    ws=$(echo "$ws" | xargs)  # trim whitespace
+    ws="${ws/#\~/$HOME}"      # expand ~ to $HOME
+    if [[ -n "$ws" ]]; then
+      mkdir -p "$ws"
+      # Avoid duplicates
+      if [[ ! " ${WORKSPACES[*]} " =~ " ${ws} " ]]; then
+        WORKSPACES+=("$ws")
+      fi
+    fi
+  done
+fi
 
 if [[ ${#WORKSPACES[@]} -eq 0 ]]; then
   echo "❌ No valid workspaces provided"

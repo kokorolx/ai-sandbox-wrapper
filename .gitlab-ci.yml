@@ -1,0 +1,46 @@
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+
+stages:
+  - build-base
+  - build-tools
+
+services:
+  - name: docker:24.0.5-dind
+    alias: docker
+    command: ["--tls=false"]
+
+before_script:
+  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+
+.build_template:
+  image: docker:24.0.5
+  script:
+    - TOOL_NAME=$TOOL_NAME
+    - IMAGE_TAG=$CI_REGISTRY_IMAGE/ai-$TOOL_NAME:latest
+    - echo "Building image $IMAGE_TAG..."
+    - bash lib/install-$TOOL_NAME.sh
+    # We need to tag the image properly before pushing,
+    # but install scripts tag as ai-$TOOL:latest locally.
+    - docker tag ai-$TOOL_NAME:latest $IMAGE_TAG
+    - docker push $IMAGE_TAG
+
+build_base:
+  stage: build-base
+  image: docker:24.0.5
+  script:
+    - echo "Building base image..."
+    - bash lib/install-base.sh
+    - docker tag ai-base:latest $CI_REGISTRY_IMAGE/ai-base:latest
+    - docker push $CI_REGISTRY_IMAGE/ai-base:latest
+
+build_tools:
+  stage: build-tools
+  extends: .build_template
+  parallel:
+    matrix:
+      - TOOL_NAME: [claude, opencode, gemini, aider, kilo, codex, amp, qwen, droid]
+  needs:
+    - build_base
