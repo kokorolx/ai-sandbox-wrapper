@@ -1,6 +1,84 @@
 #!/usr/bin/env bash
 set -e
 
+# Interactive multi-select menu
+# Usage: multi_select "title" "comma,separated,options" "comma,separated,descriptions"
+# Returns: SELECTED_ITEMS as an array
+multi_select() {
+  local title="$1"
+  IFS=',' read -ra options <<< "$2"
+  IFS=',' read -ra descriptions <<< "$3"
+  local cursor=0
+  local selected=()
+  for ((i=0; i<${#options[@]}; i++)); do selected[i]=0; done
+
+  # Use tput for better terminal control
+  tput civis # Hide cursor
+  trap 'tput cnorm; exit' INT TERM # Show cursor on exit
+
+  while true; do
+    clear
+    echo "🚀 $title"
+    echo "Use ARROWS to move, SPACE to toggle, ENTER to confirm"
+    echo ""
+
+    for i in "${!options[@]}"; do
+      if [ "$i" -eq "$cursor" ]; then
+        prefix="➔ "
+        tput setaf 6 # Cyan
+      else
+        prefix="  "
+      fi
+
+      if [ "${selected[$i]}" -eq 1 ]; then
+        check="[x]"
+        tput setaf 2 # Green
+      else
+        check="[ ]"
+      fi
+
+      printf "%s %s %-12s - %s\n" "$prefix" "$check" "${options[$i]}" "${descriptions[$i]}"
+      tput sgr0 # Reset colors
+    done
+
+    # Handle input
+    read -rsn1 key
+    case "$key" in
+      $'\x1b') # Escape sequence
+        read -rsn2 key
+        case "$key" in
+          '[A') ((cursor--)) ;; # Up
+          '[B') ((cursor++)) ;; # Down
+        esac
+        ;;
+      " ") # Space
+        if [ "${selected[$cursor]}" -eq 1 ]; then
+          selected[$cursor]=0
+        else
+          selected[$cursor]=1
+        fi
+        ;;
+      "") # Enter
+        break
+        ;;
+    esac
+
+    # Keep cursor in bounds
+    if [ "$cursor" -lt 0 ]; then cursor=$((${#options[@]} - 1)); fi
+    if [ "$cursor" -ge "${#options[@]}" ]; then cursor=0; fi
+  done
+
+  tput cnorm # Show cursor
+
+  # Prepare result
+  SELECTED_ITEMS=()
+  for i in "${!options[@]}"; do
+    if [ "${selected[$i]}" -eq 1 ]; then
+      SELECTED_ITEMS+=("${options[$i]}")
+    fi
+  done
+}
+
 # Check and install dependencies
 echo "Checking and installing dependencies..."
 
@@ -92,37 +170,17 @@ echo "📁 Whitelisted workspaces saved to: $WORKSPACES_FILE"
 # Use first workspace as default for backwards compatibility
 WORKSPACE="${WORKSPACES[0]}"
 
-echo "Available AI tools:"
-echo "  amp        - AI coding assistant from @sourcegraph/amp"
-echo "  opencode   - Open-source coding tool from opencode-ai"
-echo "  droid      - Factory CLI from factory.ai"
-echo "  claude     - Claude Code CLI from Anthropic"
-echo "  gemini     - Google Gemini CLI (free tier, MCP support)"
-echo "  kilo       - Kilo Code (500+ models, parallel agents)"
-echo "  qwen       - Alibaba Qwen CLI (256K context)"
-echo "  codex      - OpenAI Codex terminal agent"
-echo "  aider      - AI pair programmer (Git-native)"
-echo "  vscode     - VSCode Desktop in Docker (X11, requires XQuartz)"
-echo "  codeserver - VSCode in browser (fast, no X11 needed)"
-echo ""
-echo "Enter tools to install (comma-separated, or 'all' for everything):"
-read -p "Tools: " SELECTED_TOOLS
+# Tool definitions
+TOOL_OPTIONS="amp,opencode,droid,claude,gemini,kilo,qwen,codex,aider,vscode,codeserver"
+TOOL_DESCS="AI coding assistant from @sourcegraph/amp,Open-source coding tool from opencode-ai,Factory CLI from factory.ai,Claude Code CLI from Anthropic,Google Gemini CLI (free tier),Kilo Code (500+ models),Alibaba Qwen CLI (256K context),OpenAI Codex terminal agent,AI pair programmer (Git-native),VSCode Desktop in Docker (X11),VSCode in browser (fast)"
 
-# Parse selected tools
-if [[ "$SELECTED_TOOLS" == "all" ]]; then
-  TOOLS=("amp" "opencode" "droid" "claude" "gemini" "kilo" "qwen" "codex" "aider" "vscode" "codeserver")
-else
-  # Split by comma and trim spaces
-  IFS=',' read -ra TOOL_ARRAY <<< "$SELECTED_TOOLS"
-  TOOLS=()
-  for tool in "${TOOL_ARRAY[@]}"; do
-    tool=$(echo "$tool" | xargs)  # trim whitespace
-    if [[ "$tool" =~ ^(amp|opencode|droid|claude|gemini|kilo|qwen|codex|aider|vscode|codeserver)$ ]]; then
-      TOOLS+=("$tool")
-    else
-      echo "Warning: Unknown tool '$tool', skipping..."
-    fi
-  done
+# Interactive multi-select
+multi_select "Select AI Tools to Install" "$TOOL_OPTIONS" "$TOOL_DESCS"
+TOOLS=("${SELECTED_ITEMS[@]}")
+
+if [[ ${#TOOLS[@]} -eq 0 ]]; then
+  echo "❌ No tools selected for installation"
+  exit 0
 fi
 
 echo "Installing tools: ${TOOLS[*]}"
