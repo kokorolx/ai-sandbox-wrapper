@@ -13,13 +13,13 @@ mkdir -p "$HOME/.ai-home/$TOOL"
 
 # Create Dockerfile using official native installer (Go binary)
 cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
-FROM debian:bookworm-slim
+FROM ai-base:latest
 
 USER root
-ENV HOME=/home/agent
 # Install OpenCode using official native installer
-RUN curl -fsSL https://opencode.ai/install | bash
-RUN chown -R agent:agent /home/agent
+RUN curl -fsSL https://opencode.ai/install | bash && \
+    mv /home/agent/.opencode/bin/opencode /usr/local/bin/opencode && \
+    rm -rf /home/agent/.opencode
 
 USER agent
 ENTRYPOINT ["opencode"]
