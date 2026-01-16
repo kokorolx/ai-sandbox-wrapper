@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test-setup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create test workspace
+        run: |
+          mkdir -p ~/test-workspace
+          echo "Test file" > ~/test-workspace/test.txt
+
+      - name: Run setup (base only)
+        run: |
+          # Create workspaces file
+          echo "$HOME/test-workspace" > ~/.ai-workspaces
+
+          # Build base image only
+          bash lib/install-base.sh
+
+      - name: Verify base image
+        run: |
+          docker images | grep ai-base
+
+      - name: Test Claude installer
+        run: |
+          bash lib/install-claude.sh
+          docker images | grep ai-claude
+
+      - name: Test OpenCode installer
+        run: |
+          bash lib/install-opencode.sh
+          docker images | grep ai-opencode
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './lib'
+          severity: warning
+
+  security:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for hardcoded secrets
+        run: |
+          # Check for common secret patterns
+          if grep -rE "(API_KEY|SECRET|PASSWORD|TOKEN)\s*=\s*['\"][^'\"]+['\"]" . --include="*.sh"; then
+            echo "⚠️ Potential hardcoded secrets found"
+            exit 1
+          fi
+          echo "✅ No hardcoded secrets found"
