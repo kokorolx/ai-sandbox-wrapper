@@ -12,9 +12,6 @@ mkdir -p "$HOME/ai-images/$TOOL"
 mkdir -p "$HOME/.ai-cache/$TOOL"
 mkdir -p "$HOME/.ai-home/$TOOL"
 
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 # Create Dockerfile for VSCode Desktop (with X11 forwarding)
 cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
 FROM ubuntu:22.04
