@@ -23,7 +23,11 @@ mkdir -p "$HOME/.ai-home/$TOOL"
 cat <<EOF > "$HOME/ai-images/$TOOL/Dockerfile"
 FROM ai-base:latest
 USER root
-RUN bun install -g $NPM_PACKAGE
+RUN mkdir -p /usr/local/lib/$TOOL && \
+    cd /usr/local/lib/$TOOL && \
+    bun init -y && \
+    bun add $NPM_PACKAGE && \
+    ln -s /usr/local/lib/$TOOL/node_modules/.bin/$ENTRYPOINT /usr/local/bin/$ENTRYPOINT
 USER agent
 ENTRYPOINT ["$ENTRYPOINT"]
 EOF

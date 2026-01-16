@@ -15,10 +15,11 @@ mkdir -p "$HOME/.ai-home/$TOOL"
 cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
 FROM ai-base:latest
 USER root
-ENV HOME=/home/agent
-RUN bun install -g @google/gemini-cli
-RUN chown -R agent:agent /home/agent
-ENV PATH="/home/agent/.bun/bin:$PATH"
+RUN mkdir -p /usr/local/lib/gemini && \
+    cd /usr/local/lib/gemini && \
+    bun init -y && \
+    bun add @google/gemini-cli && \
+    ln -s /usr/local/lib/gemini/node_modules/.bin/gemini /usr/local/bin/gemini
 USER agent
 ENTRYPOINT ["gemini"]
 EOF

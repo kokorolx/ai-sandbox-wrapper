@@ -13,20 +13,16 @@ mkdir -p "$HOME/.ai-home/$TOOL"
 
 # Create Dockerfile using official native installer (no npm needed)
 cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
-FROM debian:bookworm-slim
+FROM ai-base:latest
 
 USER root
-ENV HOME=/home/agent
 # Install Claude Code using official native installer
-RUN curl -fsSL https://claude.ai/install.sh | bash
-RUN chown -R agent:agent /home/agent
+RUN curl -fsSL https://claude.ai/install.sh | bash && \
+    mkdir -p /usr/local/share && \
+    mv /home/agent/.local/share/claude /usr/local/share/claude && \
+    ln -sf /usr/local/share/claude/versions/$(ls /usr/local/share/claude/versions | head -1) /usr/local/bin/claude
 
-# Create workspace
-WORKDIR /workspace
-
-ENV PATH="/home/agent/.claude/bin:$PATH"
 USER agent
-
 ENTRYPOINT ["claude"]
 EOF
 
