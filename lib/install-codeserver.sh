@@ -14,7 +14,6 @@ mkdir -p "$HOME/.ai-home/$TOOL"
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 WORKSPACES_FILE="$HOME/.ai-workspaces"
 
 # Create Dockerfile for code-server
