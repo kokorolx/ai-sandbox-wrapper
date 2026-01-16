@@ -15,9 +15,8 @@ mkdir -p "$HOME/.ai-home/$TOOL"
 # Note: Qwen CLI package name may vary
 cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
 FROM ai-base:latest
-USER root
 RUN bun install -g @anthropic-ai/qwen-code || bun install -g qwen-code || echo "Qwen CLI package not found"
-USER agent
+ENV PATH="/home/agent/.bun/bin:$PATH"
 ENTRYPOINT ["qwen"]
 EOF
 

@@ -98,8 +98,8 @@ docker run --rm -it \
   --platform linux/arm64 \
   $VOLUME_MOUNTS \
   $CONFIG_MOUNT \
-  -v "$CACHE_DIR":/root/.cache \
-  -v "$HOME_DIR":/root \
+  -v "$CACHE_DIR":/home/agent/.cache \
+  -v "$HOME_DIR":/home/agent \
   -w "$CURRENT_DIR" \
   --env-file "$ENV_FILE" \
   "$IMAGE" "$@"

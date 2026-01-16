@@ -23,18 +23,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install OpenCode using official native installer (Go binary)
-RUN curl -fsSL https://opencode.ai/install | bash
-
-# Create workspace
-WORKDIR /workspace
-
-# Non-root user for security
+# Create worker user first
 RUN useradd -m -u 1001 -d /home/agent agent && \
     chown -R agent:agent /workspace
+
 USER agent
 ENV HOME=/home/agent
-ENV PATH="/usr/local/bin:$PATH"
+
+# Install OpenCode as the agent user
+RUN curl -fsSL https://opencode.ai/install | bash
 
 ENTRYPOINT ["opencode"]
 EOF

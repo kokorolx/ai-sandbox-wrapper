@@ -23,18 +23,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Claude Code using official native installer
-RUN curl -fsSL https://claude.ai/install.sh | bash
-
 # Create workspace
 WORKDIR /workspace
 
-# Non-root user for security
+# Create worker user first
 RUN useradd -m -u 1001 -d /home/agent agent && \
     chown -R agent:agent /workspace
+
 USER agent
 ENV HOME=/home/agent
-ENV PATH="/root/.claude/bin:/home/agent/.claude/bin:$PATH"
+
+# Install Claude Code as the agent user
+RUN curl -fsSL https://claude.ai/install.sh | bash
+
+ENV PATH="/home/agent/.claude/bin:$PATH"
 
 ENTRYPOINT ["claude"]
 EOF

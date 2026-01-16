@@ -11,8 +11,9 @@ mkdir -p "$HOME/.ai-home/droid"
 # Create Dockerfile with curl install
 cat <<'EOF' > "$HOME/ai-images/droid/Dockerfile"
 FROM ai-base:latest
+# Installer defaults to ~/.local/bin, install as agent
 RUN bash -c "curl -fsSL https://app.factory.ai/cli | sh"
-ENV PATH="/root/.local/bin:$PATH"
+ENV PATH="/home/agent/.local/bin:$PATH"
 ENTRYPOINT ["bash", "-c", "exec droid \"$@\"", "--"]
 EOF
 

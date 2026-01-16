@@ -14,9 +14,8 @@ mkdir -p "$HOME/.ai-home/$TOOL"
 # Create Dockerfile (extends base image for faster builds)
 cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
 FROM ai-base:latest
-USER root
 RUN bun install -g @sourcegraph/amp
-USER agent
+ENV PATH="/home/agent/.bun/bin:$PATH"
 ENTRYPOINT ["amp"]
 EOF
 
