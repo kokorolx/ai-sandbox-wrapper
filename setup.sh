@@ -46,8 +46,10 @@ multi_select() {
 
     # Handle escape sequences for arrows
     if [[ "$key" == $'\x1b' ]]; then
-      read -rsn2 -t 0.1 key # Timeout to avoid hanging on literal ESC
-      case "$key" in
+      # Read next two chars of the escape sequence
+      read -rsn1 -t 1 next1
+      read -rsn1 -t 1 next2
+      case "$next1$next2" in
         '[A') ((cursor--)) ;; # Up
         '[B') ((cursor++)) ;; # Down
       esac
