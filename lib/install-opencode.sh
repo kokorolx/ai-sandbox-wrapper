@@ -15,24 +15,13 @@ mkdir -p "$HOME/.ai-home/$TOOL"
 cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
 FROM debian:bookworm-slim
 
-# Install minimal dependencies for the native binary
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    curl \
-    ssh \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create worker user first
-RUN useradd -m -u 1001 -d /home/agent agent && \
-    chown -R agent:agent /workspace
+USER root
+ENV HOME=/home/agent
+# Install OpenCode using official native installer
+RUN curl -fsSL https://opencode.ai/install | bash
+RUN chown -R agent:agent /home/agent
 
 USER agent
-ENV HOME=/home/agent
-
-# Install OpenCode as the agent user
-RUN curl -fsSL https://opencode.ai/install | bash
-
 ENTRYPOINT ["opencode"]
 EOF
 

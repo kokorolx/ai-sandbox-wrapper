@@ -15,7 +15,10 @@ mkdir -p "$HOME/.ai-home/$TOOL"
 cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
 FROM ai-base:latest
 USER root
+ENV HOME=/home/agent
 RUN bun install -g @openai/codex
+RUN chown -R agent:agent /home/agent
+ENV PATH="/home/agent/.bun/bin:$PATH"
 USER agent
 ENTRYPOINT ["codex"]
 EOF

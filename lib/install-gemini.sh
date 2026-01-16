@@ -14,8 +14,12 @@ mkdir -p "$HOME/.ai-home/$TOOL"
 # Create Dockerfile (extends base image for faster builds)
 cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
 FROM ai-base:latest
+USER root
+ENV HOME=/home/agent
 RUN bun install -g @google/gemini-cli
+RUN chown -R agent:agent /home/agent
 ENV PATH="/home/agent/.bun/bin:$PATH"
+USER agent
 ENTRYPOINT ["gemini"]
 EOF
 

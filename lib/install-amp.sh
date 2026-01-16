@@ -14,8 +14,13 @@ mkdir -p "$HOME/.ai-home/$TOOL"
 # Create Dockerfile (extends base image for faster builds)
 cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
 FROM ai-base:latest
-RUN bun install -g @sourcegraph/amp
-ENV PATH="/home/agent/.bun/bin:$PATH"
+USER root
+ENV HOME=/home/agent
+RUN curl -fsSL https://ampcode.com/install.sh | bash
+RUN chown -R agent:agent /home/agent
+# Native installer usually puts it in /usr/local/bin or similar root-accessible path
+ENV PATH="/usr/local/bin:$PATH"
+USER agent
 ENTRYPOINT ["amp"]
 EOF
 

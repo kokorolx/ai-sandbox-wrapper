@@ -15,28 +15,17 @@ mkdir -p "$HOME/.ai-home/$TOOL"
 cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
 FROM debian:bookworm-slim
 
-# Install minimal dependencies for the native binary
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    curl \
-    ssh \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+USER root
+ENV HOME=/home/agent
+# Install Claude Code using official native installer
+RUN curl -fsSL https://claude.ai/install.sh | bash
+RUN chown -R agent:agent /home/agent
 
 # Create workspace
 WORKDIR /workspace
 
-# Create worker user first
-RUN useradd -m -u 1001 -d /home/agent agent && \
-    chown -R agent:agent /workspace
-
-USER agent
-ENV HOME=/home/agent
-
-# Install Claude Code as the agent user
-RUN curl -fsSL https://claude.ai/install.sh | bash
-
 ENV PATH="/home/agent/.claude/bin:$PATH"
+USER agent
 
 ENTRYPOINT ["claude"]
 EOF

@@ -14,9 +14,13 @@ mkdir -p "$HOME/.ai-home/$TOOL"
 # Create Dockerfile (extends base image which has Python)
 cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
 FROM ai-base:latest
-# Install aider via pipx as agent user
+USER root
+ENV HOME=/home/agent
+# Install aider via pipx as root into agent's home
 RUN pipx install aider-chat
+RUN chown -R agent:agent /home/agent
 ENV PATH="/home/agent/.local/bin:$PATH"
+USER agent
 ENTRYPOINT ["aider"]
 EOF
 

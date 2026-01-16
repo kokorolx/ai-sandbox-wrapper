@@ -24,15 +24,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Kilo Code CLI (npm works, bun has cheerio issue)
+# Install Kilo Code CLI as root
 RUN npm install -g @kilocode/cli
 
 # Create workspace
 WORKDIR /workspace
 
-# Non-root user for security
+# Create worker user
 RUN useradd -m -u 1001 -d /home/agent agent && \
     chown -R agent:agent /workspace
+
 USER agent
 ENV HOME=/home/agent
 
