@@ -42,7 +42,7 @@ multi_select() {
     done
 
     # Handle input
-    read -rsn1 key
+    IFS= read -rsn1 key
 
     # Handle escape sequences for arrows
     if [[ "$key" == $'\x1b' ]]; then
@@ -55,17 +55,17 @@ multi_select() {
       case "$key" in
         k) ((cursor--)) ;; # k for Up
         j) ((cursor++)) ;; # j for Down
-        " ") # Space
+        " ") # Space (toggle)
           if [ "${selected[$cursor]}" -eq 1 ]; then
             selected[$cursor]=0
           else
             selected[$cursor]=1
           fi
           ;;
-        "") # Enter (empty string)
+        "") # Enter (newline/carriage return/empty string)
           break
           ;;
-        $'\n'|$'\r') # Enter (newline or carriage return)
+        $'\n'|$'\r') # Extra safety for different enter signals
           break
           ;;
       esac
