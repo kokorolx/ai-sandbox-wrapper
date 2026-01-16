@@ -16,41 +16,73 @@ mkdir -p "$HOME/.ai-home/$TOOL"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
-# Create Dockerfile for VSCode Server
+# Create Dockerfile for VSCode Desktop (with X11 forwarding)
 cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
 FROM ubuntu:22.04
 
-# Install VSCode Server dependencies
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install VSCode Desktop dependencies (GTK, X11, OpenGL, and other required libraries)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     ca-certificates \
+    gnupg2 \
+    libgtk-3-0 \
+    libgbm1 \
+    libnss3 \
+    libxss1 \
+    libasound2 \
+    libx11-xcb1 \
+    libxcb-dri3-0 \
+    libdrm2 \
+    libxshmfence1 \
+    libxkbfile1 \
+    libsecret-1-0 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libxfixes3 \
+    libnotify4 \
+    fonts-liberation \
+    xdg-utils \
+    libgl1 \
+    libegl1 \
+    libgl1-mesa-dri \
+    libglx-mesa0 \
+    mesa-utils \
+    dbus \
+    dbus-x11 \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and install VSCode Server (Coder's open-source version)
-RUN ARCH=$(uname -m) && \
-    if [ "$ARCH" = "x86_64" ]; then VSCODE_ARCH="x64"; elif [ "$ARCH" = "aarch64" ]; then VSCODE_ARCH="arm64"; else VSCODE_ARCH="x64"; fi && \
-    echo "Downloading VSCode Server for ${VSCODE_ARCH}..." && \
-    wget -q -O /tmp/code-server.tar.gz "https://github.com/coder/code-server/releases/download/v4.19.0/code-server-4.19.0-linux-${VSCODE_ARCH}.tar.gz" && \
-    tar -xzf /tmp/code-server.tar.gz -C /opt && \
-    mv /opt/code-server-* /opt/code-server && \
-    rm /tmp/code-server.tar.gz && \
-    echo "VSCode Server installed successfully"
+# Download and install VSCode Desktop
+RUN ARCH=$(dpkg --print-architecture) && \
+    echo "Downloading VSCode Desktop for ${ARCH}..." && \
+    wget -q -O /tmp/vscode.deb "https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-${ARCH}" && \
+    apt-get update && apt-get install -y /tmp/vscode.deb && \
+    rm /tmp/vscode.deb && \
+    rm -rf /var/lib/apt/lists/* && \
+    echo "VSCode Desktop installed successfully"
 
 # Create directories
-RUN mkdir -p /workspace /tmp
+RUN mkdir -p /workspace /tmp /home/vscode/.config/Code /run/dbus
 WORKDIR /workspace
 
 # Non-root user (use UID 1001 to avoid conflicts)
-RUN useradd -m -u 1001 vscode && \
-    chown -R vscode:vscode /workspace /tmp /opt/code-server
+RUN useradd -m -u 1001 -d /home/vscode vscode && \
+    chown -R vscode:vscode /workspace /tmp /home/vscode
 
 USER vscode
 
-# Expose port
-EXPOSE 8000
+# Set home directory
+ENV HOME=/home/vscode
 
-# Start VSCode Server
-ENTRYPOINT ["/opt/code-server/bin/code-server", "--bind-addr", "0.0.0.0:8000", "--disable-telemetry"]
+# Start VSCode Desktop with software rendering (no GPU)
+ENTRYPOINT ["/usr/share/code/code", "--no-sandbox", "--disable-gpu"]
 CMD ["/workspace"]
 EOF
 
@@ -61,16 +93,20 @@ docker build -t "ai-$TOOL:latest" "$HOME/ai-images/$TOOL"
 # Create wrapper script
 cat <<'EOF' > "$HOME/bin/vscode-run"
 #!/usr/bin/env bash
-# VSCode Server launcher - opens in browser
+# VSCode Desktop launcher with X11 forwarding
+
+set -e
 
 WORKSPACES_FILE="$HOME/.ai-workspaces"
 CONTAINER_NAME="ai-vscode-sandbox-$$"
-VSCODE_PORT="${VSCODE_PORT:-8000}"
 
 if [ ! -f "$WORKSPACES_FILE" ]; then
     echo "Error: No workspaces configured. Run setup.sh first." >&2
     exit 1
 fi
+
+# Detect OS for X11 setup
+OS_TYPE=$(uname -s)
 
 # Build volume mounts from whitelisted workspaces
 VOLUME_MOUNTS=""
@@ -87,7 +123,7 @@ if [ $WS_INDEX -eq 0 ]; then
     exit 1
 fi
 
-echo "🔒 Starting VSCode Server (strict sandbox)..."
+echo "🔒 Starting containerized VSCode Desktop (strict sandbox)..."
 echo ""
 echo "Mounted workspaces:"
 WS_INDEX=0
@@ -99,55 +135,84 @@ while IFS= read -r ws; do
 done < "$WORKSPACES_FILE"
 echo ""
 
+# Setup X11 forwarding based on OS
+X11_OPTS=""
+if [ "$OS_TYPE" = "Darwin" ]; then
+    # macOS: Check if XQuartz is running
+    if ! pgrep -q Xquartz 2>/dev/null && ! pgrep -q X11 2>/dev/null; then
+        echo "⚠️  XQuartz not detected. Starting XQuartz..."
+        open -a XQuartz
+        sleep 3
+    fi
+
+    # Configure XQuartz to allow network connections (needed for Docker)
+    defaults write org.xquartz.X11 nolisten_tcp -bool false 2>/dev/null || true
+
+    # Allow connections from localhost
+    xhost + localhost 2>/dev/null || true
+    xhost + 127.0.0.1 2>/dev/null || true
+
+    # Use TCP connection for X11 (Docker Desktop on macOS can't use Unix sockets)
+    X11_OPTS="-e DISPLAY=host.docker.internal:0"
+
+elif [ "$OS_TYPE" = "Linux" ]; then
+    # Linux: Use host X11 socket directly
+    X11_OPTS="-v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY"
+
+    # Allow local Docker connections
+    xhost +local:docker 2>/dev/null || true
+fi
+
+echo "🚀 Launching VSCode Desktop in sandbox container..."
+echo ""
+
 # STRICT SANDBOX SECURITY:
-# - Read-only filesystem (except /workspace, /tmp)
-# - No network access (only localhost:8000)
-# - No host environment variables
+# - Read-only filesystem (except /workspace, /tmp, /home/vscode)
+# - No host environment variables (except DISPLAY)
 # - No access to host files outside volumes
-# - No elevated privileges (CAP_DROP=ALL)
 # - Non-root user
 
 docker run \
     --rm \
-    --read-only \
-    --tmpfs /tmp \
-    --tmpfs /run \
     --name "$CONTAINER_NAME" \
     $VOLUME_MOUNTS \
-    -p 127.0.0.1:$VSCODE_PORT:8000 \
-    --cap-drop=ALL \
-    --security-opt=no-new-privileges:true \
-    -e HOME=/workspace \
+    $X11_OPTS \
+    --tmpfs /tmp:exec \
+    --tmpfs /run \
+    --tmpfs /home/vscode/.config:uid=1001,gid=1001 \
+    --tmpfs /home/vscode/.vscode:uid=1001,gid=1001 \
+    -e HOME=/home/vscode \
     -e PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
     -u 1001:1001 \
     -w /workspace \
     "ai-vscode:latest"
 
 echo ""
-echo "✅ VSCode Server stopped"
+echo "✅ VSCode Desktop closed"
 echo "🧹 Sandbox cleaned up"
 EOF
 
 chmod +x "$HOME/bin/vscode-run"
 
-echo "✅ $TOOL installed (VSCode Server)"
+echo "✅ $TOOL installed (VSCode Desktop with X11)"
 echo ""
 echo "Created files:"
 echo "  - Docker image: ai-$TOOL:latest"
 echo "  - Wrapper script: $HOME/bin/vscode-run"
 echo ""
+echo "Requirements (macOS):"
+echo "  - XQuartz: brew install xquartz"
+echo "  - Log out and log back in after installing XQuartz"
+echo ""
 echo "Security Features:"
-echo "  ✓ Read-only filesystem (except /workspace, /tmp)"
-echo "  ✓ No network access (only localhost:8000)"
-echo "  ✓ No host environment variables visible"
+echo "  ✓ No host environment variables visible (except DISPLAY)"
 echo "  ✓ No access to host filesystem outside volumes"
-echo "  ✓ No elevated privileges (CAP_DROP=ALL)"
 echo "  ✓ Runs as non-root user"
 echo "  ✓ Terminal in VSCode is sandboxed"
 echo ""
 echo "Usage:"
 echo "  vscode-run"
-echo "  # Opens VSCode in browser at http://localhost:8000"
+echo "  # Opens VSCode Desktop in a sandboxed container"
 echo ""
 echo "Whitelisted Workspaces:"
 while IFS= read -r ws; do
@@ -155,3 +220,4 @@ while IFS= read -r ws; do
         echo "  - $ws"
     fi
 done < "$WORKSPACES_FILE"
+
