@@ -122,37 +122,37 @@ fi
 for tool in "${TOOLS[@]}"; do
   case $tool in
     amp)
-      bash "$SCRIPT_DIR/lib/install-tool.sh" "amp" "@sourcegraph/amp" "amp"
+      bash "$SCRIPT_DIR/lib/install-amp.sh"
       ;;
     opencode)
-      bash "$SCRIPT_DIR/lib/install-tool.sh" "opencode" "opencode-ai" "opencode"
+      bash "$SCRIPT_DIR/lib/install-opencode.sh"
       ;;
     droid)
       bash "$SCRIPT_DIR/lib/install-droid.sh"
       ;;
     claude)
-      bash "$SCRIPT_DIR/lib/install-tool.sh" "claude" "@anthropic-ai/claude-code" "claude"
+      bash "$SCRIPT_DIR/lib/install-claude.sh"
+      ;;
+    gemini)
+      bash "$SCRIPT_DIR/lib/install-gemini.sh"
+      ;;
+    kilo)
+      bash "$SCRIPT_DIR/lib/install-kilo.sh"
+      ;;
+    qwen)
+      bash "$SCRIPT_DIR/lib/install-qwen.sh"
+      ;;
+    codex)
+      bash "$SCRIPT_DIR/lib/install-codex.sh"
+      ;;
+    aider)
+      bash "$SCRIPT_DIR/lib/install-aider.sh"
       ;;
     vscode)
       bash "$SCRIPT_DIR/lib/install-vscode.sh"
       ;;
     codeserver)
       bash "$SCRIPT_DIR/lib/install-codeserver.sh"
-      ;;
-    gemini)
-      bash "$SCRIPT_DIR/lib/install-tool.sh" "gemini" "@google/gemini-cli" "gemini"
-      ;;
-    kilo)
-      bash "$SCRIPT_DIR/lib/install-tool.sh" "kilo" "@kilocode/cli" "kilocode"
-      ;;
-    qwen)
-      bash "$SCRIPT_DIR/lib/install-tool.sh" "qwen" "@anthropic-ai/qwen-code" "qwen"
-      ;;
-    codex)
-      bash "$SCRIPT_DIR/lib/install-tool.sh" "codex" "@openai/codex" "codex"
-      ;;
-    aider)
-      bash "$SCRIPT_DIR/lib/install-aider.sh"
       ;;
   esac
 done
