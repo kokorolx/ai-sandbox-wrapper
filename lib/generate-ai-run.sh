@@ -74,22 +74,22 @@ else
     amp)
       CONFIG_DIR="$HOME/.config/amp"
       mkdir -p "$CONFIG_DIR"
-      CONFIG_MOUNT="-v $CONFIG_DIR:/root/.config/amp:delegated"
+      CONFIG_MOUNT="-v $CONFIG_DIR:/home/agent/.config/amp:delegated"
       ;;
     opencode)
       CONFIG_DIR="$HOME/.config/opencode"
       mkdir -p "$CONFIG_DIR"
-      CONFIG_MOUNT="-v $CONFIG_DIR:/root/.config/opencode:delegated"
+      CONFIG_MOUNT="-v $CONFIG_DIR:/home/agent/.config/opencode:delegated"
       ;;
     claude)
       CONFIG_DIR="$HOME/.claude"
       mkdir -p "$CONFIG_DIR"
-      CONFIG_MOUNT="-v $CONFIG_DIR:/root/.claude:delegated"
+      CONFIG_MOUNT="-v $CONFIG_DIR:/home/agent/.claude:delegated"
       ;;
     droid)
       CONFIG_DIR="$HOME/.config/droid"
       mkdir -p "$CONFIG_DIR"
-      CONFIG_MOUNT="-v $CONFIG_DIR:/root/.config/droid:delegated"
+      CONFIG_MOUNT="-v $CONFIG_DIR:/home/agent/.config/droid:delegated"
       ;;
   esac
 fi

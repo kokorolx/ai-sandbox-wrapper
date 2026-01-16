@@ -15,11 +15,12 @@ mkdir -p "$HOME/.ai-home/$TOOL"
 cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
 FROM ai-base:latest
 USER root
-ENV HOME=/home/agent
-RUN curl -fsSL https://ampcode.com/install.sh | bash
-RUN chown -R agent:agent /home/agent
-# Native installer usually puts it in /usr/local/bin or similar root-accessible path
-ENV PATH="/usr/local/bin:$PATH"
+# Install Amp globally into a persistent directory (not shadowed by home)
+RUN mkdir -p /usr/local/lib/amp && \
+    cd /usr/local/lib/amp && \
+    bun init -y && \
+    bun add @sourcegraph/amp && \
+    ln -s /usr/local/lib/amp/node_modules/.bin/amp /usr/local/bin/amp
 USER agent
 ENTRYPOINT ["amp"]
 EOF
