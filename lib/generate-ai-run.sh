@@ -31,12 +31,21 @@ while IFS= read -r ws; do
 done < "$WORKSPACES_FILE"
 
 if [[ "$ALLOWED" != "true" ]]; then
-  echo "❌ You must run AI tools inside a whitelisted workspace"
-  echo "📁 Allowed workspaces:"
-  cat "$WORKSPACES_FILE"
+  echo "⚠️  SECURITY WARNING: You are running $TOOL outside a whitelisted workspace."
+  echo "   Current path: $CURRENT_DIR"
   echo ""
-  echo "💡 To add a folder: echo '/path/to/folder' >> $WORKSPACES_FILE"
-  exit 1
+  echo "Allowing this path gives the AI container access to this folder."
+  read -p "Do you want to whitelist the current directory? [y/N]: " CONFIRM
+
+  if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
+    echo "$CURRENT_DIR" >> "$WORKSPACES_FILE"
+    echo "✅ Added $CURRENT_DIR to $WORKSPACES_FILE"
+  else
+    echo "❌ Operation cancelled. Access denied."
+    echo "📁 Allowed workspaces:"
+    cat "$WORKSPACES_FILE"
+    exit 1
+  fi
 fi
 
 IMAGE="ai-${TOOL}:latest"
