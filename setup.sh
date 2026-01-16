@@ -162,24 +162,31 @@ bash "$SCRIPT_DIR/lib/generate-ai-run.sh"
 
 # PATH + aliases
 SHELL_RC="$HOME/.zshrc"
-if ! grep -q 'ai-run\|vscode-run' "$SHELL_RC"; then
+
+# Add PATH if not already present
+if ! grep -q 'export PATH="\$HOME/bin:\$PATH"' "$SHELL_RC" 2>/dev/null; then
   echo "export PATH=\"\$HOME/bin:\$PATH\"" >> "$SHELL_RC"
-  for tool in "${TOOLS[@]}"; do
-    if [[ "$tool" == "vscode" ]]; then
-      # VSCode Desktop uses vscode-run wrapper
+fi
+
+# Add aliases for each tool (only if not already present)
+for tool in "${TOOLS[@]}"; do
+  if [[ "$tool" == "vscode" ]]; then
+    # VSCode Desktop uses vscode-run wrapper
+    if ! grep -q "alias vscode=" "$SHELL_RC" 2>/dev/null; then
       echo "alias vscode='vscode-run'" >> "$SHELL_RC"
-    elif [[ "$tool" == "codeserver" ]]; then
-      # code-server uses codeserver-run wrapper
+    fi
+  elif [[ "$tool" == "codeserver" ]]; then
+    # code-server uses codeserver-run wrapper
+    if ! grep -q "alias codeserver=" "$SHELL_RC" 2>/dev/null; then
       echo "alias codeserver='codeserver-run'" >> "$SHELL_RC"
-    elif [[ "$tool" == "kilo" ]]; then
-      # Kilo uses kilocode entrypoint
-      echo "alias kilo='ai-run kilo'" >> "$SHELL_RC"
-    else
-      # Other tools use ai-run wrapper
+    fi
+  else
+    # Other tools use ai-run wrapper
+    if ! grep -q "alias $tool=" "$SHELL_RC" 2>/dev/null; then
       echo "alias $tool=\"ai-run $tool\"" >> "$SHELL_RC"
     fi
-  done
-fi
+  fi
+done
 
 echo ""
 echo "✅ Setup complete!"
