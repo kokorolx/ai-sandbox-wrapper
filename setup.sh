@@ -87,6 +87,59 @@ multi_select() {
       SELECTED_ITEMS+=("${options[$i]}")
     fi
   done
+# Interactive single-select menu
+# Usage: single_select "title" "comma,separated,options" "comma,separated,descriptions"
+# Returns: SELECTED_ITEM as a string
+single_select() {
+  local title="$1"
+  IFS=',' read -ra options <<< "$2"
+  IFS=',' read -ra descriptions <<< "$3"
+  local cursor=0
+
+  tput civis # Hide cursor
+  trap 'tput cnorm; exit' INT TERM
+
+  while true; do
+    clear
+    echo "🚀 $title"
+    echo "Use ARROWS to move, ENTER to select"
+    echo ""
+
+    for i in "${!options[@]}"; do
+      if [ "$i" -eq "$cursor" ]; then
+        prefix="➔ "
+        tput setaf 6 # Cyan
+      else
+        prefix="  "
+      fi
+
+      printf "%s %-12s - %s\n" "$prefix" "${options[$i]}" "${descriptions[$i]}"
+      tput sgr0
+    done
+
+    IFS= read -rsn1 key
+    if [[ "$key" == $'\x1b' ]]; then
+      read -rsn1 -t 1 next1
+      read -rsn1 -t 1 next2
+      case "$next1$next2" in
+        '[A') ((cursor--)) ;;
+        '[B') ((cursor++)) ;;
+      esac
+    else
+      case "$key" in
+        k) ((cursor--)) ;;
+        j) ((cursor++)) ;;
+        "") break ;;
+        $'\n'|$'\r') break ;;
+      esac
+    fi
+
+    if [ "$cursor" -lt 0 ]; then cursor=$((${#options[@]} - 1)); fi
+    if [ "$cursor" -ge "${#options[@]}" ]; then cursor=0; fi
+  done
+
+  tput cnorm
+  SELECTED_ITEM="${options[$cursor]}"
 }
 
 # Check and install dependencies
@@ -125,18 +178,14 @@ if [[ -f "$WORKSPACES_FILE" ]]; then
   done < "$WORKSPACES_FILE"
 
   echo ""
-  echo "Choose an option:"
-  echo "  [y] Reuse existing workspaces"
-  echo "  [a] Add more workspaces"
-  echo "  [n] Replace with new workspaces"
-  read -p "Option [y/a/n]: " WS_OPTION
+  single_select "Configure Workspaces" "reuse,add,replace" "Keep existing whitelisted folders,Append new folders to the list,Start fresh with new folders"
 
-  case "$WS_OPTION" in
-    a)
+  case "$SELECTED_ITEM" in
+    add)
       echo "Enter additional workspace directories (comma-separated):"
       read -p "Add Workspaces: " WORKSPACE_INPUT
       ;;
-    n)
+    replace)
       WORKSPACES=()
       echo "Enter new workspace directories (comma-separated):"
       read -p "Workspaces: " WORKSPACE_INPUT
