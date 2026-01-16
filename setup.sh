@@ -54,25 +54,31 @@ echo "📁 Whitelisted workspaces saved to: $WORKSPACES_FILE"
 WORKSPACE="${WORKSPACES[0]}"
 
 echo "Available AI tools:"
-echo "  amp      - AI coding assistant from @sourcegraph/amp"
-echo "  opencode - Open-source coding tool from opencode-ai"
-echo "  droid    - Factory CLI from factory.ai"
-echo "  claude   - Claude Code CLI from Anthropic"
-echo "  vscode   - VSCode MCP server configuration"
+echo "  amp        - AI coding assistant from @sourcegraph/amp"
+echo "  opencode   - Open-source coding tool from opencode-ai"
+echo "  droid      - Factory CLI from factory.ai"
+echo "  claude     - Claude Code CLI from Anthropic"
+echo "  gemini     - Google Gemini CLI (free tier, MCP support)"
+echo "  kilo       - Kilo Code (500+ models, parallel agents)"
+echo "  qwen       - Alibaba Qwen CLI (256K context)"
+echo "  codex      - OpenAI Codex terminal agent"
+echo "  aider      - AI pair programmer (Git-native)"
+echo "  vscode     - VSCode Desktop in Docker (X11, requires XQuartz)"
+echo "  codeserver - VSCode in browser (fast, no X11 needed)"
 echo ""
 echo "Enter tools to install (comma-separated, or 'all' for everything):"
 read -p "Tools: " SELECTED_TOOLS
 
 # Parse selected tools
 if [[ "$SELECTED_TOOLS" == "all" ]]; then
-  TOOLS=("amp" "opencode" "droid" "claude" "vscode")
+  TOOLS=("amp" "opencode" "droid" "claude" "gemini" "kilo" "qwen" "codex" "aider" "vscode" "codeserver")
 else
   # Split by comma and trim spaces
   IFS=',' read -ra TOOL_ARRAY <<< "$SELECTED_TOOLS"
   TOOLS=()
   for tool in "${TOOL_ARRAY[@]}"; do
     tool=$(echo "$tool" | xargs)  # trim whitespace
-    if [[ "$tool" =~ ^(amp|opencode|droid|claude|vscode)$ ]]; then
+    if [[ "$tool" =~ ^(amp|opencode|droid|claude|gemini|kilo|qwen|codex|aider|vscode|codeserver)$ ]]; then
       TOOLS+=("$tool")
     else
       echo "Warning: Unknown tool '$tool', skipping..."
@@ -130,6 +136,24 @@ for tool in "${TOOLS[@]}"; do
     vscode)
       bash "$SCRIPT_DIR/lib/install-vscode.sh"
       ;;
+    codeserver)
+      bash "$SCRIPT_DIR/lib/install-codeserver.sh"
+      ;;
+    gemini)
+      bash "$SCRIPT_DIR/lib/install-tool.sh" "gemini" "@google/gemini-cli" "gemini"
+      ;;
+    kilo)
+      bash "$SCRIPT_DIR/lib/install-tool.sh" "kilo" "@kilocode/cli" "kilocode"
+      ;;
+    qwen)
+      bash "$SCRIPT_DIR/lib/install-tool.sh" "qwen" "@anthropic-ai/qwen-code" "qwen"
+      ;;
+    codex)
+      bash "$SCRIPT_DIR/lib/install-tool.sh" "codex" "@openai/codex" "codex"
+      ;;
+    aider)
+      bash "$SCRIPT_DIR/lib/install-aider.sh"
+      ;;
   esac
 done
 
@@ -142,8 +166,14 @@ if ! grep -q 'ai-run\|vscode-run' "$SHELL_RC"; then
   echo "export PATH=\"\$HOME/bin:\$PATH\"" >> "$SHELL_RC"
   for tool in "${TOOLS[@]}"; do
     if [[ "$tool" == "vscode" ]]; then
-      # VSCode is native, not containerized
+      # VSCode Desktop uses vscode-run wrapper
       echo "alias vscode='vscode-run'" >> "$SHELL_RC"
+    elif [[ "$tool" == "codeserver" ]]; then
+      # code-server uses codeserver-run wrapper
+      echo "alias codeserver='codeserver-run'" >> "$SHELL_RC"
+    elif [[ "$tool" == "kilo" ]]; then
+      # Kilo uses kilocode entrypoint
+      echo "alias kilo='ai-run kilo'" >> "$SHELL_RC"
     else
       # Other tools use ai-run wrapper
       echo "alias $tool=\"ai-run $tool\"" >> "$SHELL_RC"
@@ -157,7 +187,9 @@ echo ""
 echo "🛠️  Installed tools:"
 for tool in "${TOOLS[@]}"; do
   if [[ "$tool" == "vscode" ]]; then
-    echo "  vscode-run (or: vscode)"
+    echo "  vscode-run (or: vscode) - Desktop VSCode via X11"
+  elif [[ "$tool" == "codeserver" ]]; then
+    echo "  codeserver-run (or: codeserver) - Browser VSCode at localhost:8080"
   else
     echo "  ai-run $tool (or: $tool)"
   fi
