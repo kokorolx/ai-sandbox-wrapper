@@ -87,6 +87,8 @@ multi_select() {
       SELECTED_ITEMS+=("${options[$i]}")
     fi
   done
+}
+
 # Interactive single-select menu
 # Usage: single_select "title" "comma,separated,options" "comma,separated,descriptions"
 # Returns: SELECTED_ITEM as a string
