@@ -43,25 +43,33 @@ multi_select() {
 
     # Handle input
     read -rsn1 key
-    case "$key" in
-      $'\x1b') # Escape sequence
-        read -rsn2 key
-        case "$key" in
-          '[A') ((cursor--)) ;; # Up
-          '[B') ((cursor++)) ;; # Down
-        esac
-        ;;
-      " ") # Space
-        if [ "${selected[$cursor]}" -eq 1 ]; then
-          selected[$cursor]=0
-        else
-          selected[$cursor]=1
-        fi
-        ;;
-      "") # Enter
-        break
-        ;;
-    esac
+
+    # Handle escape sequences for arrows
+    if [[ "$key" == $'\x1b' ]]; then
+      read -rsn2 -t 0.1 key # Timeout to avoid hanging on literal ESC
+      case "$key" in
+        '[A') ((cursor--)) ;; # Up
+        '[B') ((cursor++)) ;; # Down
+      esac
+    else
+      case "$key" in
+        k) ((cursor--)) ;; # k for Up
+        j) ((cursor++)) ;; # j for Down
+        " ") # Space
+          if [ "${selected[$cursor]}" -eq 1 ]; then
+            selected[$cursor]=0
+          else
+            selected[$cursor]=1
+          fi
+          ;;
+        "") # Enter (empty string)
+          break
+          ;;
+        $'\n'|$'\r') # Enter (newline or carriage return)
+          break
+          ;;
+      esac
+    fi
 
     # Keep cursor in bounds
     if [ "$cursor" -lt 0 ]; then cursor=$((${#options[@]} - 1)); fi
