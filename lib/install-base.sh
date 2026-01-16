@@ -6,13 +6,18 @@ mkdir -p "$HOME/ai-images/base"
 cat <<'EOF' > "$HOME/ai-images/base/Dockerfile"
 FROM oven/bun:latest
 
-# Install common dependencies
+# Install common dependencies (Bun + Python for npm and pip tools)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     ssh \
     ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    python3 \
+    python3-pip \
+    python3-venv \
+    pipx \
+    && rm -rf /var/lib/apt/lists/* \
+    && pipx ensurepath
 
 # Create workspace
 WORKDIR /workspace

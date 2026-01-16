@@ -11,33 +11,15 @@ mkdir -p "$HOME/ai-images/$TOOL"
 mkdir -p "$HOME/.ai-cache/$TOOL"
 mkdir -p "$HOME/.ai-home/$TOOL"
 
-# Create Dockerfile for Aider (Python-based)
+# Create Dockerfile (extends base image which has Python)
 cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
-FROM python:3.12-slim
-
-# Install dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    curl \
-    ssh \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install pipx and aider using uv (fastest method)
-RUN pip install --no-cache-dir pipx && \
-    pipx ensurepath && \
-    pipx install aider-chat
-
-# Create workspace
-WORKDIR /workspace
-
-# Non-root user for security
-RUN useradd -m -u 1001 -d /home/agent agent && \
-    chown -R agent:agent /workspace /root/.local
+FROM ai-base:latest
+USER root
+# Install aider via pipx (already in base image)
+RUN pipx install aider-chat && \
+    ln -s /root/.local/bin/aider /usr/local/bin/aider || true
 USER agent
-ENV HOME=/home/agent
 ENV PATH="/root/.local/bin:$PATH"
-
 ENTRYPOINT ["aider"]
 EOF
 
