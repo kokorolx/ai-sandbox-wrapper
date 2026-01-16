@@ -90,19 +90,21 @@ VSCode MCP Configuration:
 
 ## VSCode with Full Sandbox
 
-If you selected `vscode` during setup, VSCode runs in a **fully containerized sandbox** similar to other AI tools. VSCode can ONLY access files in whitelisted workspaces, and the terminal is also sandboxed.
+> **TODO**: VSCode GUI with X11 forwarding has library dependency issues. Currently switching to VSCode Server (web-based) for reliable implementation.
+
+If you selected `vscode` during setup, **VSCode Server** (web-based) runs in a **fully containerized sandbox** similar to other AI tools. VSCode can ONLY access files in whitelisted workspaces, and the terminal is also sandboxed.
 
 ### Security Model
 
 **Sandbox Restrictions:**
 - ✓ **Runs in Docker container** (isolated from host)
 - ✓ **Read-only filesystem** (except /workspace, /tmp)
-- ✓ **No network access** (cannot reach internet)
+- ✓ **No network access** (only localhost:8000)
 - ✓ **No host environment variables** (OPENAI_API_KEY, etc. invisible)
 - ✓ **No host filesystem access** (outside mounted volumes)
 - ✓ **No elevated privileges** (CAP_DROP=ALL)
 - ✓ **Terminal is sandboxed** (cannot cd outside /workspace)
-- ✓ **Non-root user** (runs as UID 1000)
+- ✓ **Non-root user** (runs as UID 1001)
 
 **Protection**: Even if VSCode or an extension is compromised, it cannot:
 - Access your private files
@@ -117,11 +119,10 @@ If you selected `vscode` during setup, VSCode runs in a **fully containerized sa
 2. This builds the `ai-vscode:latest` Docker image
 3. The wrapper script is created at `$HOME/bin/vscode-run`
 
-### Requirements (Additional)
+### Requirements
 
 - Docker Desktop
-- **macOS**: XQuartz for X11 display
-- **Linux**: X11 display available
+- No additional dependencies (web-based, no X11 needed)
 
 ### Usage
 
@@ -133,10 +134,11 @@ vscode-run
 
 This will:
 1. Mount all whitelisted workspaces into the container
-2. Start containerized VSCode with X11 forwarding
-3. VSCode displays on your screen but runs in sandbox
-4. Terminal inside VSCode is also sandboxed
-5. Clean up when VSCode closes
+2. Start VSCode Server in the container
+3. Open browser at `http://localhost:8000`
+4. VSCode runs fully sandboxed
+5. Terminal inside VSCode is also sandboxed
+6. Clean up when you close the browser or press Ctrl+C
 
 ### Example
 
@@ -148,16 +150,16 @@ If `~/.ai-workspaces` contains:
 
 Running `vscode-run`:
 ```
-🔒 Starting containerized VSCode (strict sandbox)...
+🔒 Starting VSCode Server (strict sandbox)...
 
 Mounted workspaces:
   ✓ /Users/me/projects → /workspace/workspace-0
   ✓ /Users/me/work → /workspace/workspace-1
 
-🚀 Launching VSCode in sandbox container...
+🚀 Opening browser at http://localhost:8000
 ```
 
-VSCode opens, but:
+VSCode opens in browser, but:
 - Can ONLY see `/workspace/workspace-0` and `/workspace/workspace-1`
 - Terminal cannot `cd /home` or access other files
 - All edits stay in mounted workspaces
@@ -165,5 +167,5 @@ VSCode opens, but:
 
 ### Files Created
 
-- `ai-vscode:latest` - Docker image (fully containerized VSCode)
-- `$HOME/bin/vscode-run` - Wrapper script to launch containerized VSCode
+- `ai-vscode:latest` - Docker image (containerized VSCode Server)
+- `$HOME/bin/vscode-run` - Wrapper script to launch VSCode Server
