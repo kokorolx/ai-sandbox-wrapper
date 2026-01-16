@@ -8,6 +8,21 @@ Run `./setup.sh` to set up the environment.
 
 It will prompt for workspace directories (comma-separated), then ask which AI tools to install (or 'all' for everything). It will install dependencies (git, python3), create necessary directories, build Docker images for selected tools, and configure shell aliases.
 
+### Running Tools
+
+**Containerized tools** (docker-based):
+```bash
+ai-run amp              # or: amp
+ai-run opencode         # or: opencode
+ai-run claude           # or: claude
+ai-run droid            # or: droid
+```
+
+**VSCode** (fully containerized sandbox):
+```bash
+vscode-run              # or: vscode
+```
+
 ## Requirements
 
 - Docker Desktop (required)
@@ -19,6 +34,7 @@ It will prompt for workspace directories (comma-separated), then ask which AI to
 - **opencode**: Open-source coding tool from opencode-ai
 - **droid**: Factory CLI from factory.ai (installed on host system)
 - **claude**: Claude Code CLI from Anthropic
+- **vscode**: Model Context Protocol (MCP) server configuration for VSCode integration
 
 ## Configuration
 
@@ -68,3 +84,86 @@ Per-project configurations:
 - `.opencode.json`
 - `.droid.json`
 - `.claude.json`
+
+VSCode MCP Configuration:
+- `.vscode/mcp.json` - MCP server definitions for VSCode integration
+
+## VSCode with Full Sandbox
+
+If you selected `vscode` during setup, VSCode runs in a **fully containerized sandbox** similar to other AI tools. VSCode can ONLY access files in whitelisted workspaces, and the terminal is also sandboxed.
+
+### Security Model
+
+**Sandbox Restrictions:**
+- ✓ **Runs in Docker container** (isolated from host)
+- ✓ **Read-only filesystem** (except /workspace, /tmp)
+- ✓ **No network access** (cannot reach internet)
+- ✓ **No host environment variables** (OPENAI_API_KEY, etc. invisible)
+- ✓ **No host filesystem access** (outside mounted volumes)
+- ✓ **No elevated privileges** (CAP_DROP=ALL)
+- ✓ **Terminal is sandboxed** (cannot cd outside /workspace)
+- ✓ **Non-root user** (runs as UID 1000)
+
+**Protection**: Even if VSCode or an extension is compromised, it cannot:
+- Access your private files
+- Read API keys or secrets
+- Make network requests
+- Escape the container
+- Access other projects
+
+### Setup
+
+1. Run `./setup.sh` and select `vscode`
+2. This builds the `ai-vscode:latest` Docker image
+3. The wrapper script is created at `$HOME/bin/vscode-run`
+
+### Requirements (Additional)
+
+- Docker Desktop
+- **macOS**: XQuartz for X11 display
+- **Linux**: X11 display available
+
+### Usage
+
+Simply run:
+
+```bash
+vscode-run
+```
+
+This will:
+1. Mount all whitelisted workspaces into the container
+2. Start containerized VSCode with X11 forwarding
+3. VSCode displays on your screen but runs in sandbox
+4. Terminal inside VSCode is also sandboxed
+5. Clean up when VSCode closes
+
+### Example
+
+If `~/.ai-workspaces` contains:
+```
+/Users/me/projects
+/Users/me/work
+```
+
+Running `vscode-run`:
+```
+🔒 Starting containerized VSCode (strict sandbox)...
+
+Mounted workspaces:
+  ✓ /Users/me/projects → /workspace/workspace-0
+  ✓ /Users/me/work → /workspace/workspace-1
+
+🚀 Launching VSCode in sandbox container...
+```
+
+VSCode opens, but:
+- Can ONLY see `/workspace/workspace-0` and `/workspace/workspace-1`
+- Terminal cannot `cd /home` or access other files
+- All edits stay in mounted workspaces
+- No access to API keys, secrets, or host config
+
+### Files Created
+
+- `ai-vscode:latest` - Docker image (fully containerized VSCode)
+- `$HOME/bin/vscode-run` - Wrapper script to launch containerized VSCode

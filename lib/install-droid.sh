@@ -12,6 +12,7 @@ mkdir -p "$HOME/.ai-home/droid"
 cat <<'EOF' > "$HOME/ai-images/droid/Dockerfile"
 FROM ai-base:latest
 RUN curl -fsSL https://app.factory.ai/cli | sh
+ENV PATH="/root/.local/bin:$PATH"
 ENTRYPOINT ["droid"]
 EOF
 

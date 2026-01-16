@@ -58,20 +58,21 @@ echo "  amp      - AI coding assistant from @sourcegraph/amp"
 echo "  opencode - Open-source coding tool from opencode-ai"
 echo "  droid    - Factory CLI from factory.ai"
 echo "  claude   - Claude Code CLI from Anthropic"
+echo "  vscode   - VSCode MCP server configuration"
 echo ""
 echo "Enter tools to install (comma-separated, or 'all' for everything):"
 read -p "Tools: " SELECTED_TOOLS
 
 # Parse selected tools
 if [[ "$SELECTED_TOOLS" == "all" ]]; then
-  TOOLS=("amp" "opencode" "droid" "claude")
+  TOOLS=("amp" "opencode" "droid" "claude" "vscode")
 else
   # Split by comma and trim spaces
   IFS=',' read -ra TOOL_ARRAY <<< "$SELECTED_TOOLS"
   TOOLS=()
   for tool in "${TOOL_ARRAY[@]}"; do
     tool=$(echo "$tool" | xargs)  # trim whitespace
-    if [[ "$tool" =~ ^(amp|opencode|droid|claude)$ ]]; then
+    if [[ "$tool" =~ ^(amp|opencode|droid|claude|vscode)$ ]]; then
       TOOLS+=("$tool")
     else
       echo "Warning: Unknown tool '$tool', skipping..."
@@ -98,8 +99,18 @@ fi
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Install base image
-bash "$SCRIPT_DIR/lib/install-base.sh"
+# Install base image if any containerized tools selected (vscode doesn't need it)
+NEEDS_BASE_IMAGE=0
+for tool in "${TOOLS[@]}"; do
+  if [[ "$tool" =~ ^(amp|opencode|claude)$ ]]; then
+    NEEDS_BASE_IMAGE=1
+    break
+  fi
+done
+
+if [[ $NEEDS_BASE_IMAGE -eq 1 ]]; then
+  bash "$SCRIPT_DIR/lib/install-base.sh"
+fi
 
 # Install selected tools
 for tool in "${TOOLS[@]}"; do
@@ -116,6 +127,9 @@ for tool in "${TOOLS[@]}"; do
     claude)
       bash "$SCRIPT_DIR/lib/install-tool.sh" "claude" "@anthropic-ai/claude-code" "claude"
       ;;
+    vscode)
+      bash "$SCRIPT_DIR/lib/install-vscode.sh"
+      ;;
   esac
 done
 
@@ -124,10 +138,16 @@ bash "$SCRIPT_DIR/lib/generate-ai-run.sh"
 
 # PATH + aliases
 SHELL_RC="$HOME/.zshrc"
-if ! grep -q 'ai-run' "$SHELL_RC"; then
+if ! grep -q 'ai-run\|vscode-run' "$SHELL_RC"; then
   echo "export PATH=\"\$HOME/bin:\$PATH\"" >> "$SHELL_RC"
   for tool in "${TOOLS[@]}"; do
-    echo "alias $tool=\"ai-run $tool\"" >> "$SHELL_RC"
+    if [[ "$tool" == "vscode" ]]; then
+      # VSCode is native, not containerized
+      echo "alias vscode='vscode-run'" >> "$SHELL_RC"
+    else
+      # Other tools use ai-run wrapper
+      echo "alias $tool=\"ai-run $tool\"" >> "$SHELL_RC"
+    fi
   done
 fi
 
@@ -136,7 +156,11 @@ echo "✅ Setup complete!"
 echo ""
 echo "🛠️  Installed tools:"
 for tool in "${TOOLS[@]}"; do
-  echo "  ai-run $tool"
+  if [[ "$tool" == "vscode" ]]; then
+    echo "  vscode-run (or: vscode)"
+  else
+    echo "  ai-run $tool (or: $tool)"
+  fi
 done
 echo ""
 echo "➡ Restart terminal or run: source ~/.zshrc"
