@@ -21,6 +21,9 @@ before_script:
   script:
     - TOOL_NAME=$TOOL_NAME
     - IMAGE_TAG=$CI_REGISTRY_IMAGE/ai-$TOOL_NAME:latest
+    - echo "Preparing base image..."
+    - docker pull $CI_REGISTRY_IMAGE/ai-base:latest
+    - docker tag $CI_REGISTRY_IMAGE/ai-base:latest ai-base:latest
     - echo "Building image $IMAGE_TAG..."
     - bash lib/install-$TOOL_NAME.sh
     # We need to tag the image properly before pushing,
