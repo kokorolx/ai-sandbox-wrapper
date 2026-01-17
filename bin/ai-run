@@ -28,7 +28,7 @@ if [[ "$ALLOWED" != "true" ]]; then
   echo "   Current path: $CURRENT_DIR"
   echo ""
   echo "Allowing this path gives the AI container access to this folder."
-  
+
   # Only prompt if running interactively (TTY attached)
   if [[ -t 0 ]]; then
     read -p "Do you want to whitelist the current directory? [y/N]: " CONFIRM
@@ -76,8 +76,9 @@ else
   case "$TOOL" in
     amp)
       CONFIG_DIR="$HOME/.config/amp"
-      mkdir -p "$CONFIG_DIR"
-      CONFIG_MOUNT="-v $CONFIG_DIR:/home/agent/.config/amp:delegated"
+      DATA_DIR="$HOME/.local/share/amp"
+      mkdir -p "$CONFIG_DIR" "$DATA_DIR"
+      CONFIG_MOUNT="-v $CONFIG_DIR:/home/agent/.config/amp:delegated -v $DATA_DIR:/home/agent/.local/share/amp:delegated"
       ;;
     opencode)
       CONFIG_DIR="$HOME/.config/opencode"
