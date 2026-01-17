@@ -46,6 +46,9 @@ before_script:
       set -e
     - echo "Verification passed! Pushing image..."
     - docker push $IMAGE_TAG
+  needs:
+    - optional: true
+      job: build_base
 
 build_base:
   stage: build-base
@@ -69,8 +72,6 @@ build_amp:
   extends: .build_template
   variables:
     TOOL_NAME: amp
-  needs:
-    - build_base
 
 build_droid:
   stage: build-tools
@@ -84,61 +85,45 @@ build_droid:
     - mkdir -p /tmp/droid-home
   script:
     - !reference [.build_template, script]
-  needs:
-    - build_base
 
 build_claude:
   stage: build-tools
   extends: .build_template
   variables:
     TOOL_NAME: claude
-  needs:
-    - build_base
 
 build_opencode:
   stage: build-tools
   extends: .build_template
   variables:
     TOOL_NAME: opencode
-  needs:
-    - build_base
 
 build_gemini:
   stage: build-tools
   extends: .build_template
   variables:
     TOOL_NAME: gemini
-  needs:
-    - build_base
 
 build_kilo:
   stage: build-tools
   extends: .build_template
   variables:
     TOOL_NAME: kilo
-  needs:
-    - build_base
 
 build_qwen:
   stage: build-tools
   extends: .build_template
   variables:
     TOOL_NAME: qwen
-  needs:
-    - build_base
 
 build_codex:
   stage: build-tools
   extends: .build_template
   variables:
     TOOL_NAME: codex
-  needs:
-    - build_base
 
 build_aider:
   stage: build-tools
   extends: .build_template
   variables:
     TOOL_NAME: aider
-  needs:
-    - build_base
