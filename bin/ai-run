@@ -114,16 +114,62 @@ fi
 # Git access control (opt-in per workspace)
 GIT_MOUNTS=""
 GIT_ALLOWED_FILE="$HOME/.ai-git-allowed"
+GIT_CACHE_DIR="$HOME/.ai-cache/git"
 touch "$GIT_ALLOWED_FILE"
 
 # Check if Git access is allowed for this workspace
 if grep -q "^$CURRENT_DIR$" "$GIT_ALLOWED_FILE" 2>/dev/null; then
   # Previously allowed for this workspace
-  if [ -d "$HOME/.ssh" ]; then
-    GIT_MOUNTS="$GIT_MOUNTS -v $HOME/.ssh:/home/agent/.ssh:ro"
+  # Check if saved keys exist for this workspace
+  WORKSPACE_MD5=$(echo "$CURRENT_DIR" | md5sum | cut -c1-8)
+  SAVED_KEYS_FILE="$HOME/.ai-git-keys-$WORKSPACE_MD5"
+
+  if [ -f "$SAVED_KEYS_FILE" ]; then
+    # Use previously saved key selection
+    echo "📋 Syncing Git credentials..."
+    if [ -d "$GIT_CACHE_DIR/ssh" ]; then
+      chmod -R 700 "$GIT_CACHE_DIR/ssh" 2>/dev/null || true
+      rm -rf "$GIT_CACHE_DIR/ssh"
+    fi
+    mkdir -p "$GIT_CACHE_DIR/ssh"
+
+    # Read saved keys and copy them
+    mapfile -t SAVED_KEYS < "$SAVED_KEYS_FILE"
+    for key in "${SAVED_KEYS[@]}"; do
+      [ -z "$key" ] && continue
+      src_file="$HOME/.ssh/$key"
+      dst_file="$GIT_CACHE_DIR/ssh/$key"
+
+      dst_dir=$(dirname "$dst_file")
+      mkdir -p "$dst_dir"
+
+      if [ -f "$src_file" ]; then
+        cp "$src_file" "$dst_file"
+        chmod 600 "$dst_file"
+      fi
+    done
+
+    # Copy SSH config and known_hosts
+    if [ -f "$HOME/.ssh/config" ]; then
+      cp "$HOME/.ssh/config" "$GIT_CACHE_DIR/ssh/config"
+      chmod 600 "$GIT_CACHE_DIR/ssh/config"
+    fi
+
+    if [ -f "$HOME/.ssh/known_hosts" ]; then
+      cp "$HOME/.ssh/known_hosts" "$GIT_CACHE_DIR/ssh/known_hosts"
+      chmod 600 "$GIT_CACHE_DIR/ssh/known_hosts"
+    fi
+
+    chmod 700 "$GIT_CACHE_DIR/ssh"
+    find "$GIT_CACHE_DIR/ssh" -type d -exec chmod 700 {} \;
+
+    GIT_MOUNTS="$GIT_MOUNTS -v $GIT_CACHE_DIR/ssh:/home/agent/.ssh:ro"
+    echo "✅ Git credentials synced"
   fi
+
   if [ -f "$HOME/.gitconfig" ]; then
-    GIT_MOUNTS="$GIT_MOUNTS -v $HOME/.gitconfig:/home/agent/.gitconfig:ro"
+    # Copy gitconfig to HOME_DIR (can't mount file inside mounted directory)
+    cp "$HOME/.gitconfig" "$HOME_DIR/.gitconfig" 2>/dev/null || true
   fi
 else
   # Ask user if they want Git access for this workspace
@@ -141,26 +187,93 @@ else
     read -p "Choice [1-3]: " git_choice
 
     case "$git_choice" in
-      1)
-        # Allow once
-        if [ -d "$HOME/.ssh" ]; then
-          GIT_MOUNTS="$GIT_MOUNTS -v $HOME/.ssh:/home/agent/.ssh:ro"
+      1|2)
+        # Interactive SSH key selection
+        echo ""
+        echo "🔑 SSH Key Selection"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+        # Source the SSH key selector library
+        # Resolve symlink to get actual project directory
+        SCRIPT_PATH="${BASH_SOURCE[0]}"
+        while [ -L "$SCRIPT_PATH" ]; do
+          SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+          SCRIPT_PATH="$(readlink "$SCRIPT_PATH")"
+          [[ $SCRIPT_PATH != /* ]] && SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_PATH"
+        done
+        SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+        source "$SCRIPT_DIR/../lib/ssh-key-selector.sh"
+
+        # Let user select keys
+        if select_ssh_keys; then
+          if [ ${#SELECTED_SSH_KEYS[@]} -gt 0 ]; then
+            echo "📋 Copying selected credentials to cache..."
+            if [ -d "$GIT_CACHE_DIR/ssh" ]; then
+              chmod -R 700 "$GIT_CACHE_DIR/ssh" 2>/dev/null || true
+              rm -rf "$GIT_CACHE_DIR/ssh"
+            fi
+            mkdir -p "$GIT_CACHE_DIR/ssh"
+
+            # Copy selected SSH keys (preserve directory structure exactly)
+            for key in "${SELECTED_SSH_KEYS[@]}"; do
+              echo "  → Copying $key..."
+              src_file="$HOME/.ssh/$key"
+              dst_file="$GIT_CACHE_DIR/ssh/$key"
+
+              # Create parent directory with correct permissions
+              dst_dir=$(dirname "$dst_file")
+              mkdir -p "$dst_dir"
+
+              # Copy the file and set permissions
+              if [ -f "$src_file" ]; then
+                cp "$src_file" "$dst_file"
+                chmod 600 "$dst_file"
+              else
+                echo "    ⚠️  Warning: $src_file not found, skipping"
+              fi
+            done
+
+            # Copy SSH config and known_hosts to root of ssh cache
+            if [ -f "$HOME/.ssh/config" ]; then
+              echo "  → Copying SSH config..."
+              cp "$HOME/.ssh/config" "$GIT_CACHE_DIR/ssh/config"
+              chmod 600 "$GIT_CACHE_DIR/ssh/config"
+            fi
+
+            if [ -f "$HOME/.ssh/known_hosts" ]; then
+              echo "  → Copying known_hosts..."
+              cp "$HOME/.ssh/known_hosts" "$GIT_CACHE_DIR/ssh/known_hosts"
+              chmod 600 "$GIT_CACHE_DIR/ssh/known_hosts"
+            fi
+
+            # Ensure ssh directory has correct permissions
+            chmod 700 "$GIT_CACHE_DIR/ssh"
+            find "$GIT_CACHE_DIR/ssh" -type d -exec chmod 700 {} \;
+
+            GIT_MOUNTS="$GIT_MOUNTS -v $GIT_CACHE_DIR/ssh:/home/agent/.ssh:ro"
+
+            # Copy gitconfig
+            if [ -f "$HOME/.gitconfig" ]; then
+              echo "  → Copying .gitconfig..."
+              cp "$HOME/.gitconfig" "$HOME_DIR/.gitconfig" 2>/dev/null || true
+            fi
+
+            if [ "$git_choice" = "2" ]; then
+              # Save workspace and selected keys for future sessions
+              echo "$CURRENT_DIR" >> "$GIT_ALLOWED_FILE"
+              # Save selected keys (one per line for easier parsing)
+              WORKSPACE_MD5=$(echo "$CURRENT_DIR" | md5sum | cut -c1-8)
+              printf "%s\n" "${SELECTED_SSH_KEYS[@]}" > "$HOME/.ai-git-keys-$WORKSPACE_MD5"
+              echo "✅ Git access enabled and saved for: $CURRENT_DIR"
+            else
+              echo "✅ Git access enabled for this session"
+            fi
+          else
+            echo "⚠️  No SSH keys selected. Git access disabled."
+          fi
+        else
+          echo "⚠️  SSH key selection cancelled. Git access disabled."
         fi
-        if [ -f "$HOME/.gitconfig" ]; then
-          GIT_MOUNTS="$GIT_MOUNTS -v $HOME/.gitconfig:/home/agent/.gitconfig:ro"
-        fi
-        echo "✅ Git access enabled for this session"
-        ;;
-      2)
-        # Always allow for this workspace
-        echo "$CURRENT_DIR" >> "$GIT_ALLOWED_FILE"
-        if [ -d "$HOME/.ssh" ]; then
-          GIT_MOUNTS="$GIT_MOUNTS -v $HOME/.ssh:/home/agent/.ssh:ro"
-        fi
-        if [ -f "$HOME/.gitconfig" ]; then
-          GIT_MOUNTS="$GIT_MOUNTS -v $HOME/.gitconfig:/home/agent/.gitconfig:ro"
-        fi
-        echo "✅ Git access enabled and saved for: $CURRENT_DIR"
         ;;
       *)
         # Default: no Git access
