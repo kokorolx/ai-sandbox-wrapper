@@ -13,13 +13,15 @@ select_ssh_keys() {
   local -a recommended_keys=()
   if [ -f ".git/config" ]; then
     # Extract SSH URLs from git config
-    local git_hosts=$(grep -E "url.*@" .git/config 2>/dev/null | sed -E 's/.*@([^:]+).*/\1/' | sort -u)
+    local git_hosts
+    git_hosts=$(grep -E "url.*@" .git/config 2>/dev/null | sed -E 's/.*@([^:]+).*/\1/' | sort -u)
 
     # Look for keys matching these hosts in SSH config
     if [ -f "$ssh_dir/config" ]; then
       for host in $git_hosts; do
         # Find IdentityFile entries for this host
-        local keys=$(awk -v host="$host" '
+        local keys
+        keys=$(awk -v host="$host" '
           /^Host / { current_host=$2 }
           current_host ~ host && /IdentityFile/ {
             gsub(/^~\/\.ssh\//, "", $2)
