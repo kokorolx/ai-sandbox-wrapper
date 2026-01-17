@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set -e
 
 TOOL="$1"
@@ -27,13 +28,23 @@ if [[ "$ALLOWED" != "true" ]]; then
   echo "   Current path: $CURRENT_DIR"
   echo ""
   echo "Allowing this path gives the AI container access to this folder."
-  read -p "Do you want to whitelist the current directory? [y/N]: " CONFIRM
-
-  if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
-    echo "$CURRENT_DIR" >> "$WORKSPACES_FILE"
-    echo "✅ Added $CURRENT_DIR to $WORKSPACES_FILE"
+  
+  # Only prompt if running interactively (TTY attached)
+  if [[ -t 0 ]]; then
+    read -p "Do you want to whitelist the current directory? [y/N]: " CONFIRM
+    if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
+      echo "$CURRENT_DIR" >> "$WORKSPACES_FILE"
+      echo "✅ Added $CURRENT_DIR to $WORKSPACES_FILE"
+    else
+      echo "❌ Operation cancelled. Access denied."
+      echo "📁 Allowed workspaces:"
+      cat "$WORKSPACES_FILE"
+      exit 1
+    fi
   else
-    echo "❌ Operation cancelled. Access denied."
+    # Non-interactive: fail securely
+    echo "❌ Access denied (non-interactive mode). Please add this path manually:"
+    echo "   echo '$CURRENT_DIR' >> $WORKSPACES_FILE"
     echo "📁 Allowed workspaces:"
     cat "$WORKSPACES_FILE"
     exit 1
@@ -194,8 +205,8 @@ if grep -q "^$CURRENT_DIR$" "$GIT_ALLOWED_FILE" 2>/dev/null; then
     cp "$HOME/.gitconfig" "$HOME_DIR/.gitconfig" 2>/dev/null || true
   fi
 else
-  # Ask user if they want Git access for this workspace
-  if [ -d "$HOME/.ssh" ] || [ -f "$HOME/.gitconfig" ]; then
+  # Ask user if they want Git access for this workspace (only in interactive mode)
+  if [[ -t 0 ]] && ([ -d "$HOME/.ssh" ] || [ -f "$HOME/.gitconfig" ]); then
     echo ""
     echo "🔐 Git Access Control"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
