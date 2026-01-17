@@ -1,298 +1,423 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Sandbox Wrapper - Secure AI Coding Tools</title>
     <meta name="description" content="Isolate AI coding agents from your host system. Run Claude, Gemini, Aider, and more in secure Docker containers.">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        heading: ['Space Grotesk', 'sans-serif'],
+                        body: ['DM Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        slate: {
+                            950: '#020617',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+        .glass-hover:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        header {
-            text-align: center;
-            padding: 4rem 0 3rem;
-            color: white;
-        }
-
-        h1 {
-            font-size: 3.5rem;
-            font-weight: 800;
-            margin-bottom: 1rem;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .tagline {
-            font-size: 1.5rem;
-            opacity: 0.95;
-            margin-bottom: 2rem;
-        }
-
-        .cta-buttons {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-top: 2rem;
-        }
-
-        .btn {
-            padding: 1rem 2rem;
-            font-size: 1.1rem;
-            font-weight: 600;
-            text-decoration: none;
-            border-radius: 8px;
-            transition: transform 0.2s, box-shadow 0.2s;
-            display: inline-block;
-        }
-
-        .btn-primary {
-            background: white;
-            color: #667eea;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-
-        .btn-secondary {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: 2px solid white;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-        }
-
-        .features {
-            background: white;
-            border-radius: 16px;
-            padding: 3rem;
-            margin: 2rem 0;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-        }
-
-        .features h2 {
-            font-size: 2.5rem;
-            margin-bottom: 2rem;
-            text-align: center;
-            color: #667eea;
-        }
-
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 2rem;
-            margin-top: 2rem;
-        }
-
-        .feature-card {
-            padding: 1.5rem;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            transition: transform 0.2s;
-        }
-
-        .feature-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .feature-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .feature-card h3 {
-            font-size: 1.3rem;
-            margin-bottom: 0.5rem;
-            color: #667eea;
-        }
-
-        .tools-section {
-            background: rgba(255,255,255,0.95);
-            border-radius: 16px;
-            padding: 3rem;
-            margin: 2rem 0;
-        }
-
-        .tools-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-top: 2rem;
-        }
-
-        .tool-badge {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1rem;
-            border-radius: 8px;
-            text-align: center;
-            font-weight: 600;
-            transition: transform 0.2s;
-        }
-
-        .tool-badge:hover {
-            transform: scale(1.05);
-        }
-
-        .code-block {
-            background: #2d3748;
-            color: #68d391;
-            padding: 1.5rem;
-            border-radius: 8px;
-            margin: 1.5rem 0;
-            overflow-x: auto;
-            font-family: 'Courier New', monospace;
-        }
-
-        footer {
-            text-align: center;
-            padding: 2rem;
-            color: white;
-            opacity: 0.9;
-        }
-
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 2.5rem;
-            }
-            .tagline {
-                font-size: 1.2rem;
-            }
-            .features, .tools-section {
-                padding: 2rem 1.5rem;
-            }
+        .text-gradient {
+            background: linear-gradient(135deg, #60A5FA 0%, #2563EB 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <header>
-            <h1>🔒 AI Sandbox Wrapper</h1>
-            <p class="tagline">Secure Docker containers for AI coding tools</p>
-            <p>Run Claude, Gemini, Aider, and 10+ more AI agents safely isolated from your system</p>
-
-            <div class="cta-buttons">
-                <a href="https://github.com/kokorolx/ai-sandbox-wrapper" class="btn btn-primary">
-                    View on GitHub
+<body class="bg-slate-950 text-slate-200 font-body antialiased">
+    <!-- Navbar -->
+    <nav class="fixed top-4 left-4 right-4 z-50 flex justify-center">
+        <div class="glass px-6 py-3 rounded-full flex items-center space-x-8 max-w-2xl w-full justify-between">
+            <div class="flex items-center space-x-2">
+                <span class="text-xl font-heading font-bold text-blue-500">🔒 AI Sandbox</span>
+            </div>
+            <div class="hidden md:flex items-center space-x-6 text-sm font-medium">
+                <a href="#features" class="hover:text-blue-400 transition-colors">Features</a>
+                <a href="#tools" class="hover:text-blue-400 transition-colors">Tools</a>
+                <a href="#quickstart" class="hover:text-blue-400 transition-colors">Quick Start</a>
+            </div>
+            <div>
+                <a href="https://github.com/kokorolx/ai-sandbox-wrapper" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-sm font-bold transition-all transform hover:scale-105 active:scale-95">
+                    GitHub
                 </a>
-                <a href="https://github.com/kokorolx/ai-sandbox-wrapper#-quick-start" class="btn btn-secondary">
-                    Quick Start Guide
-                </a>
-            </div>
-        </header>
-
-        <div class="features">
-            <h2>🛡️ Why Sandbox Your AI Tools?</h2>
-
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">🔐</div>
-                    <h3>Protect Sensitive Data</h3>
-                    <p>AI agents only access the specific SSH keys and Host configs you explicitly select</p>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">📁</div>
-                    <h3>Workspace Isolation</h3>
-                    <p>Only whitelisted folders are accessible to AI tools</p>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">🚫</div>
-                    <h3>No Root Access</h3>
-                    <p>Containers run as non-root with dropped capabilities</p>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
-                    <h3>Pre-Built Images</h3>
-                    <p>Pull from GitLab registry - no build time needed</p>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">✅</div>
-                    <h3>CI-Tested</h3>
-                    <p>All images verified in GitLab CI pipeline</p>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">🔄</div>
-                    <h3>Auto-Updated</h3>
-                    <p>Latest versions on every push to beta branch</p>
-                </div>
             </div>
         </div>
+    </nav>
 
-        <div class="tools-section">
-            <h2 style="text-align: center; color: #667eea; margin-bottom: 1rem;">📦 Supported Tools (13)</h2>
-            <p style="text-align: center; margin-bottom: 2rem;">All tools run in isolated Docker containers with strict security</p>
+    <!-- Hero Section -->
+    <main class="relative pt-32 pb-20 px-4 overflow-hidden">
+        <!-- Background accents -->
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-blue-600/10 blur-[120px] -z-10 rounded-full"></div>
+        <div class="absolute -top-24 right-0 w-96 h-96 bg-indigo-600/10 blur-[100px] -z-10 rounded-full"></div>
 
-            <div class="tools-grid">
-                <div class="tool-badge">Claude Code</div>
-                <div class="tool-badge">Gemini CLI</div>
-                <div class="tool-badge">Aider</div>
-                <div class="tool-badge">Kilo Code</div>
-                <div class="tool-badge">OpenCode</div>
-                <div class="tool-badge">Qwen (1M ctx)</div>
-                <div class="tool-badge">Codex</div>
-                <div class="tool-badge">Amp</div>
-                <div class="tool-badge">Droid</div>
-                <div class="tool-badge">Qoder</div>
-                <div class="tool-badge">Auggie</div>
-                <div class="tool-badge">CodeBuddy</div>
-                <div class="tool-badge">Jules</div>
-            </div>
-        </div>
-
-        <div class="features">
-            <h2>🚀 Quick Start</h2>
-
-            <div class="code-block">
-# Clone the repository<br>
-git clone https://github.com/kokorolx/ai-sandbox-wrapper.git<br>
-cd ai-sandbox-wrapper<br>
-<br>
-# Run interactive setup<br>
-./setup.sh<br>
-<br>
-# Use any tool<br>
-ai-run claude<br>
-ai-run gemini<br>
-ai-run aider
-            </div>
-
-            <h3 style="margin-top: 2rem; color: #667eea;">Or use pre-built images:</h3>
-            <div class="code-block">
-docker pull registry.gitlab.com/kokorolee/ai-sandbox-wrapper/ai-claude:latest<br>
-docker pull registry.gitlab.com/kokorolee/ai-sandbox-wrapper/ai-gemini:latest
-            </div>
-        </div>
-
-        <footer>
-            <p><strong>AI Sandbox Wrapper</strong> - Open Source | MIT License</p>
-            <p style="margin-top: 0.5rem;">
-                <a href="https://github.com/kokorolx/ai-sandbox-wrapper" style="color: white; text-decoration: none;">GitHub</a> •
-                <a href="https://gitlab.com/kokorolee/ai-sandbox-wrapper" style="color: white; text-decoration: none;">GitLab</a>
+        <div class="max-w-7xl mx-auto text-center">
+            <h1 class="text-5xl md:text-7xl font-heading font-bold tracking-tight mb-6 mt-16">
+                Secure Isolation for <br>
+                <span class="text-gradient">AI Coding Agents</span>
+            </h1>
+            <p class="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-10">
+                Run Claude, Gemini, Aider, and more in security-hardened Docker containers.
+                Protect your host system while giving AI the freedom to build.
             </p>
-        </footer>
-    </div>
+
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <a href="https://github.com/kokorolx/ai-sandbox-wrapper#-quick-start" class="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-lg transition-all shadow-lg shadow-blue-900/20 transform hover:-translate-y-1">
+                    Get Started Now
+                </a>
+                <a href="https://github.com/kokorolx/ai-sandbox-wrapper" class="w-full sm:w-auto px-8 py-4 glass text-white rounded-xl font-bold text-lg transition-all hover:bg-white/10 flex items-center justify-center space-x-2">
+                    <span>View Repository</span>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Features Bento Grid -->
+    <section id="features" class="py-20 px-4">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-heading font-bold mb-4">Built for Security</h2>
+                <p class="text-slate-400">Advanced isolation patterns to keep your data safe.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Large Card -->
+                <div class="md:col-span-2 glass rounded-3xl p-8 group transition-all glass-hover">
+                    <div class="bg-blue-600/20 w-12 h-12 rounded-xl flex items-center justify-center mb-6 text-blue-400 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                    </div>
+                    <h3 class="text-2xl font-heading font-bold mb-4">Hardened Security Defaults</h3>
+                    <p class="text-slate-400 leading-relaxed mb-6">
+                        Every container runs as a non-root user with dropped Linux capabilities.
+                        We follow the principle of least privilege, ensuring AI agents only have access to what they truly need.
+                    </p>
+                    <div class="flex flex-wrap gap-2 text-xs font-bold uppercase tracking-wider">
+                        <span class="px-3 py-1 bg-white/5 rounded-full text-slate-500">No Root Access</span>
+                        <span class="px-3 py-1 bg-white/5 rounded-full text-slate-500">Seccomp Profiles</span>
+                        <span class="px-3 py-1 bg-white/5 rounded-full text-slate-500">Resource Limits</span>
+                    </div>
+                </div>
+
+                <!-- Small Card 1 -->
+                <div class="glass rounded-3xl p-8 group transition-all glass-hover">
+                    <div class="bg-indigo-600/20 w-12 h-12 rounded-xl flex items-center justify-center mb-6 text-indigo-400 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-heading font-bold mb-3">Granular SSH Selection</h3>
+                    <p class="text-slate-400 text-sm leading-relaxed">
+                        Explicitly select which SSH keys and host configurations are exposed to the sandbox. No more global credential exposure.
+                    </p>
+                </div>
+
+                <!-- Small Card 2 -->
+                <div class="glass rounded-3xl p-8 group transition-all glass-hover">
+                    <div class="bg-emerald-600/20 w-12 h-12 rounded-xl flex items-center justify-center mb-6 text-emerald-400 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-heading font-bold mb-3">Workspace Isolation</h3>
+                    <p class="text-slate-400 text-sm leading-relaxed">
+                        Only whitelisted directories are mounted into the container. Keeping your system files completely invisible to the agent.
+                    </p>
+                </div>
+
+                <!-- Small Card 3 -->
+                <div class="glass rounded-3xl p-8 group transition-all glass-hover">
+                    <div class="bg-amber-600/20 w-12 h-12 rounded-xl flex items-center justify-center mb-6 text-amber-400 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-heading font-bold mb-3">Instant Start</h3>
+                    <p class="text-slate-400 text-sm leading-relaxed">
+                        Pull pre-built images from the GitLab registry. Zero build time, just local security for global AI power.
+                    </p>
+                </div>
+
+                <!-- Large Card 2 -->
+                <div class="md:col-span-2 glass rounded-3xl p-8 group transition-all glass-hover overflow-hidden relative">
+                    <div class="relative z-10 flex flex-col h-full">
+                        <div class="bg-purple-600/20 w-12 h-12 rounded-xl flex items-center justify-center mb-6 text-purple-400 group-hover:scale-110 transition-transform">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                        </div>
+                        <h3 class="text-2xl font-heading font-bold mb-4">Continuous Integration</h3>
+                        <p class="text-slate-400 leading-relaxed mb-6 max-w-md">
+                            Every image is automatically built, tested, and scanned for vulnerabilities in our GitLab CI pipeline. Security is baked in from commit one.
+                        </p>
+                        <div class="mt-auto flex items-center space-x-4">
+                            <div class="flex -space-x-2">
+                                <div class="w-8 h-8 rounded-full bg-slate-800 border-2 border-slate-900 flex items-center justify-center text-[10px] font-bold">C</div>
+                                <div class="w-8 h-8 rounded-full bg-slate-800 border-2 border-slate-900 flex items-center justify-center text-[10px] font-bold">G</div>
+                                <div class="w-8 h-8 rounded-full bg-slate-800 border-2 border-slate-900 flex items-center justify-center text-[10px] font-bold">A</div>
+                            </div>
+                            <span class="text-xs text-slate-500 font-bold uppercase tracking-wider">Verified CI/CD Pipeline</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Supported Tools Section -->
+    <section id="tools" class="py-24 bg-slate-900/50 relative overflow-hidden">
+        <!-- Glow effects -->
+        <div class="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-600/5 blur-[100px] rounded-full"></div>
+
+        <div class="max-w-7xl mx-auto px-4 relative z-10">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-5xl font-heading font-bold mb-6">Supported Agents</h2>
+                <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+                    One wrapper, unlimited possibilities. We provide secure, pre-configured environments for the industry's leading AI coding tools.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                <!-- Claude Code -->
+                <a href="https://claudecode.io/" target="_blank" class="group glass p-6 rounded-3xl text-center transition-all duration-500 hover:scale-105 hover:bg-orange-500/10 hover:border-orange-500/50 relative">
+                    <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </div>
+                    <div class="w-14 h-14 mx-auto mb-5 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-orange-400 group-hover:bg-orange-500/20 transition-all duration-500 group-hover:rotate-6">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"></path><rect width="16" height="12" x="4" y="8" rx="2"></rect><path d="M2 14h2"></path><path d="M20 14h2"></path><path d="M15 13v2"></path><path d="M9 13v2"></path></svg>
+                    </div>
+                    <h3 class="font-bold text-slate-300 group-hover:text-white transition-colors">Claude Code</h3>
+                </a>
+
+                <!-- Gemini CLI -->
+                <a href="https://ai.google.dev/gemini" target="_blank" class="group glass p-6 rounded-3xl text-center transition-all duration-500 hover:scale-105 hover:bg-blue-500/10 hover:border-blue-500/50 relative">
+                    <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </div>
+                    <div class="w-14 h-14 mx-auto mb-5 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-blue-400 group-hover:bg-blue-500/20 transition-all duration-500 group-hover:-rotate-6">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>
+                    </div>
+                    <h3 class="font-bold text-slate-300 group-hover:text-white transition-colors">Gemini CLI</h3>
+                </a>
+
+                <!-- Aider -->
+                <a href="https://aider.chat/" target="_blank" class="group glass p-6 rounded-3xl text-center transition-all duration-500 hover:scale-105 hover:bg-emerald-500/10 hover:border-emerald-500/50 relative">
+                    <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </div>
+                    <div class="w-14 h-14 mx-auto mb-5 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-emerald-400 group-hover:bg-emerald-500/20 transition-all duration-500">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" x2="20" y1="19" y2="19"></line></svg>
+                    </div>
+                    <h3 class="font-bold text-slate-300 group-hover:text-white transition-colors">Aider</h3>
+                </a>
+
+                <!-- Kilo Code -->
+                <a href="https://kilo.ai/" target="_blank" class="group glass p-6 rounded-3xl text-center transition-all duration-500 hover:scale-105 hover:bg-purple-500/10 hover:border-purple-500/50 relative">
+                    <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </div>
+                    <div class="w-14 h-14 mx-auto mb-5 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-purple-400 group-hover:bg-purple-500/20 transition-all duration-500">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="9" y="9" width="6" height="6"></rect><path d="M15 2v2"></path><path d="M15 20v2"></path><path d="M2 15h2"></path><path d="M2 9h2"></path><path d="M20 15h2"></path><path d="M20 9h2"></path><path d="M9 2v2"></path><path d="M9 20v2"></path></svg>
+                    </div>
+                    <h3 class="font-bold text-slate-300 group-hover:text-white transition-colors">Kilo Code</h3>
+                </a>
+
+                <!-- OpenCode -->
+                <a href="https://opencode.ai/" target="_blank" class="group glass p-6 rounded-3xl text-center transition-all duration-500 hover:scale-105 hover:bg-cyan-500/10 hover:border-cyan-500/50 relative">
+                    <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </div>
+                    <div class="w-14 h-14 mx-auto mb-5 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-cyan-400 group-hover:bg-cyan-500/20 transition-all duration-500">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                    </div>
+                    <h3 class="font-bold text-slate-300 group-hover:text-white transition-colors">OpenCode</h3>
+                </a>
+
+                <!-- Qwen -->
+                <a href="https://github.com/QwenLM/Qwen" target="_blank" class="group glass p-6 rounded-3xl text-center transition-all duration-500 hover:scale-105 hover:bg-slate-500/10 hover:border-slate-500/50 relative">
+                    <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </div>
+                    <div class="w-14 h-14 mx-auto mb-5 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-slate-100 group-hover:bg-white/10 transition-all duration-500">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a3.5 3.5 0 0 0 0-7c-.3 0-.6 0-.9.1a5 5 0 0 0-9.2-2.1c-.2 0-.4 0-.6.1a3.5 3.5 0 0 0 0 7h10.7z"></path></svg>
+                    </div>
+                    <h3 class="font-bold text-slate-300 group-hover:text-white transition-colors">Qwen (1M ctx)</h3>
+                </a>
+
+                <!-- Codex -->
+                <a href="https://openai.com/blog/openai-codex" target="_blank" class="group glass p-6 rounded-3xl text-center transition-all duration-500 hover:scale-105 hover:bg-emerald-600/10 hover:border-emerald-600/50 relative">
+                    <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </div>
+                    <div class="w-14 h-14 mx-auto mb-5 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-emerald-400 group-hover:bg-emerald-600/20 transition-all duration-500">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+                    </div>
+                    <h3 class="font-bold text-slate-300 group-hover:text-white transition-colors">Codex</h3>
+                </a>
+
+                <!-- Amp -->
+                <a href="https://github.com/sourcegraph/amp" target="_blank" class="group glass p-6 rounded-3xl text-center transition-all duration-500 hover:scale-105 hover:bg-blue-600/10 hover:border-blue-600/50 relative">
+                    <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </div>
+                    <div class="w-14 h-14 mx-auto mb-5 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-blue-400 group-hover:bg-blue-600/20 transition-all duration-500">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"></path><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"></path><circle cx="12" cy="12" r="2"></circle><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"></path><path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1"></path></svg>
+                    </div>
+                    <h3 class="font-bold text-slate-300 group-hover:text-white transition-colors">Amp</h3>
+                </a>
+
+                <!-- Droid -->
+                <a href="https://www.factory.ai/" target="_blank" class="group glass p-6 rounded-3xl text-center transition-all duration-500 hover:scale-105 hover:bg-yellow-500/10 hover:border-yellow-500/50 relative">
+                    <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </div>
+                    <div class="w-14 h-14 mx-auto mb-5 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-yellow-400 group-hover:bg-yellow-500/20 transition-all duration-500">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"></path><rect width="16" height="12" x="4" y="8" rx="2"></rect><path d="M2 14h2"></path><path d="M20 14h2"></path><path d="M15 13v2"></path><path d="M9 13v2"></path></svg>
+                    </div>
+                    <h3 class="font-bold text-slate-300 group-hover:text-white transition-colors">Droid</h3>
+                </a>
+
+                <!-- Qoder -->
+                <a href="https://qoder.com/" target="_blank" class="group glass p-6 rounded-3xl text-center transition-all duration-500 hover:scale-105 hover:bg-red-500/10 hover:border-red-500/50 relative">
+                    <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </div>
+                    <div class="w-14 h-14 mx-auto mb-5 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-red-400 group-hover:bg-red-500/20 transition-all duration-500">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 10l-2 2 2 2"></path><path d="M14 14l2-2-2-2"></path><rect width="20" height="16" x="2" y="4" rx="2"></rect></svg>
+                    </div>
+                    <h3 class="font-bold text-slate-300 group-hover:text-white transition-colors">Qoder</h3>
+                </a>
+
+                <!-- Auggie -->
+                <a href="https://augmentcode.com/" target="_blank" class="group glass p-6 rounded-3xl text-center transition-all duration-500 hover:scale-105 hover:bg-pink-500/10 hover:border-pink-500/50 relative">
+                    <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </div>
+                    <div class="w-14 h-14 mx-auto mb-5 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-pink-400 group-hover:bg-pink-500/20 transition-all duration-500 group-hover:scale-110">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>
+                    </div>
+                    <h3 class="font-bold text-slate-300 group-hover:text-white transition-colors">Auggie</h3>
+                </a>
+
+                <!-- CodeBuddy -->
+                <a href="https://codebuddy.ai/" target="_blank" class="group glass p-6 rounded-3xl text-center transition-all duration-500 hover:scale-105 hover:bg-orange-600/10 hover:border-orange-600/50 relative">
+                    <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </div>
+                    <div class="w-14 h-14 mx-auto mb-5 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-orange-400 group-hover:bg-orange-600/20 transition-all duration-500">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    </div>
+                    <h3 class="font-bold text-slate-300 group-hover:text-white transition-colors">CodeBuddy</h3>
+                </a>
+
+                <!-- Jules -->
+                <a href="https://jules.google/" target="_blank" class="group glass p-6 rounded-3xl text-center transition-all duration-500 hover:scale-105 hover:bg-blue-400/10 hover:border-blue-400/50 relative">
+                    <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </div>
+                    <div class="w-14 h-14 mx-auto mb-5 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-blue-300 group-hover:bg-blue-400/20 transition-all duration-500">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"></path></svg>
+                    </div>
+                    <h3 class="font-bold text-slate-300 group-hover:text-white transition-colors">Jules</h3>
+                </a>
+
+                <!-- Shai -->
+                <a href="https://github.com/ovh/shai" target="_blank" class="group glass p-6 rounded-3xl text-center transition-all duration-500 hover:scale-105 hover:bg-blue-900/20 hover:border-blue-700/50 relative">
+                    <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </div>
+                    <div class="w-14 h-14 mx-auto mb-5 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-blue-300 group-hover:bg-blue-900/40 transition-all duration-500">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    </div>
+                    <h3 class="font-bold text-slate-300 group-hover:text-white transition-colors">Shai</h3>
+                </a>
+
+                <!-- VSCode Server -->
+                <a href="https://github.com/coder/code-server" target="_blank" class="group glass p-6 rounded-3xl text-center transition-all duration-500 hover:scale-105 hover:bg-blue-500/10 hover:border-blue-500/50 relative">
+                    <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </div>
+                    <div class="w-14 h-14 mx-auto mb-5 bg-white/5 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-blue-400 group-hover:bg-blue-500/20 transition-all duration-500">
+                        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><line x1="9" x2="9" y1="3" y2="21"></line></svg>
+                    </div>
+                    <h3 class="font-bold text-slate-300 group-hover:text-white transition-colors">VSCode Server</h3>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Start -->
+    <section id="quickstart" class="py-20 px-4">
+        <div class="max-w-4xl mx-auto">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-heading font-bold mb-4">Quick Start</h2>
+                <p class="text-slate-400">Get up and running in seconds.</p>
+            </div>
+
+            <div class="bg-black/40 rounded-3xl overflow-hidden border border-white/5 shadow-2xl">
+                <!-- Mac Traffic Lights -->
+                <div class="bg-white/5 px-4 py-3 flex items-center space-x-2 border-b border-white/5">
+                    <div class="w-3 h-3 rounded-full bg-red-500/50"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500/50"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500/50"></div>
+                    <span class="text-xs text-slate-500 font-mono ml-4">terminal — ai-run</span>
+                </div>
+                <div class="p-6 font-mono text-sm leading-relaxed overflow-x-auto">
+                    <div class="mb-4">
+                        <span class="text-slate-500"># Clone the repository</span><br>
+                        <span class="text-blue-400">git clone</span> https://github.com/kokorolx/ai-sandbox-wrapper.git<br>
+                        <span class="text-blue-400">cd</span> ai-sandbox-wrapper
+                    </div>
+                    <div class="mb-4">
+                        <span class="text-slate-500"># Run interactive setup</span><br>
+                        <span class="text-emerald-400">./setup.sh</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500"># Launch any tool</span><br>
+                        <span class="text-blue-400">ai-run</span> claude<br>
+                        <span class="text-blue-400">ai-run</span> aider
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 text-center">
+                <p class="text-slate-500 text-sm">
+                    Prefer pre-built images?
+                    <code class="px-2 py-1 bg-white/5 rounded mx-1">docker pull registry.gitlab.com/...</code>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 px-4 border-t border-white/5 text-center mt-20">
+        <div class="max-w-7xl mx-auto">
+            <p class="font-heading font-bold text-xl mb-4">AI Sandbox Wrapper</p>
+            <div class="flex justify-center space-x-6 text-sm text-slate-500 mb-8">
+                <a href="https://github.com/kokorolx/ai-sandbox-wrapper" class="hover:text-blue-400 transition-colors underline decoration-slate-800 underline-offset-4">GitHub</a>
+                <a href="https://gitlab.com/kokorolee/ai-sandbox-wrapper" class="hover:text-blue-400 transition-colors underline decoration-slate-800 underline-offset-4">GitLab</a>
+                <a href="https://github.com/kokorolx/ai-sandbox-wrapper/blob/main/LICENSE" class="hover:text-blue-400 transition-colors underline decoration-slate-800 underline-offset-4">MIT License</a>
+            </div>
+            <p class="text-xs text-slate-600">
+                Built for the community. Secure your AI agents.
+            </p>
+        </div>
+    </footer>
 </body>
 </html>

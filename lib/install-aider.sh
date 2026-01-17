@@ -14,10 +14,9 @@ mkdir -p "$HOME/.ai-home/$TOOL"
 # Create Dockerfile (extends base image which has Python)
 cat <<'EOF' > "dockerfiles/$TOOL/Dockerfile"
 FROM ai-base:latest
-USER root
-# Install aider via pip
-RUN pip install --no-cache-dir aider-chat
 USER agent
+# Install aider via aider-install
+RUN python3 -m pip install --break-system-packages aider-install && aider-install
 ENTRYPOINT ["aider"]
 EOF
 
