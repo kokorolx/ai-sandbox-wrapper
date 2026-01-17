@@ -150,10 +150,23 @@ if grep -q "^$CURRENT_DIR$" "$GIT_ALLOWED_FILE" 2>/dev/null; then
       fi
     done
 
-    # Copy SSH config and known_hosts
+    # Copy filtered SSH config (only hosts needed for this repo)
     if [ -f "$HOME/.ssh/config" ]; then
-      cp "$HOME/.ssh/config" "$GIT_CACHE_DIR/ssh/config"
-      chmod 600 "$GIT_CACHE_DIR/ssh/config"
+      SETUP_SSH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/setup-ssh-config"
+      if [ -x "$SETUP_SSH" ]; then
+        output=$("$SETUP_SSH" 2>&1)
+        TEMP_CONFIG=$(echo "$output" | grep "Config:" | tail -1 | awk '{print $NF}')
+        if [ -f "$TEMP_CONFIG" ]; then
+          cp "$TEMP_CONFIG" "$GIT_CACHE_DIR/ssh/config"
+          chmod 600 "$GIT_CACHE_DIR/ssh/config"
+        else
+          cp "$HOME/.ssh/config" "$GIT_CACHE_DIR/ssh/config"
+          chmod 600 "$GIT_CACHE_DIR/ssh/config"
+        fi
+      else
+        cp "$HOME/.ssh/config" "$GIT_CACHE_DIR/ssh/config"
+        chmod 600 "$GIT_CACHE_DIR/ssh/config"
+      fi
     fi
 
     if [ -f "$HOME/.ssh/known_hosts" ]; then
@@ -237,11 +250,28 @@ else
               fi
             done
 
-            # Copy SSH config and known_hosts to root of ssh cache
+            # Copy filtered SSH config (only hosts needed for this repo)
             if [ -f "$HOME/.ssh/config" ]; then
-              echo "  → Copying SSH config..."
-              cp "$HOME/.ssh/config" "$GIT_CACHE_DIR/ssh/config"
-              chmod 600 "$GIT_CACHE_DIR/ssh/config"
+              echo "  → Generating filtered SSH config..."
+              # Run setup-ssh-config to get filtered config
+              SETUP_SSH="$SCRIPT_DIR/setup-ssh-config"
+              if [ -x "$SETUP_SSH" ]; then
+                # Run it and capture the filtered config path
+                output=$("$SETUP_SSH" 2>&1)
+                TEMP_CONFIG=$(echo "$output" | grep "Config:" | tail -1 | awk '{print $NF}')
+                if [ -f "$TEMP_CONFIG" ]; then
+                  cp "$TEMP_CONFIG" "$GIT_CACHE_DIR/ssh/config"
+                  chmod 600 "$GIT_CACHE_DIR/ssh/config"
+                else
+                  # Fallback to copying full config if setup-ssh-config fails
+                  cp "$HOME/.ssh/config" "$GIT_CACHE_DIR/ssh/config"
+                  chmod 600 "$GIT_CACHE_DIR/ssh/config"
+                fi
+              else
+                # Fallback: copy full config
+                cp "$HOME/.ssh/config" "$GIT_CACHE_DIR/ssh/config"
+                chmod 600 "$GIT_CACHE_DIR/ssh/config"
+              fi
             fi
 
             if [ -f "$HOME/.ssh/known_hosts" ]; then

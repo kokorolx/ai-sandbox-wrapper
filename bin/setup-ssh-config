@@ -1,0 +1,211 @@
+#!/bin/bash
+# Extract SSH config entries needed for this repo's git remotes
+# Also collects and fixes SSH keys for use in containers
+
+set -e
+
+SSH_CONFIG_FILE="${HOME}/.ssh/config"
+SSH_DIR="${HOME}/.ssh"
+TEMP_CONFIG="/tmp/ssh_config_filtered"
+TEMP_KEYS_DIR="/tmp/ssh_keys_filtered"
+COLLECTED_KEYS=()
+STRICT_MODE=0
+HOSTS=""
+
+# Show usage
+usage() {
+  cat << EOF
+Usage: $(basename "$0") [OPTIONS]
+
+Extract SSH config entries and keys needed for git remotes (or custom hosts).
+
+OPTIONS:
+  --hosts HOSTS         Comma/space-separated list of SSH host aliases to extract
+                        (default: auto-detect from git remotes)
+  --strict              Fail if any key file is missing (default: warn and continue)
+  --help                Show this help message
+
+EXAMPLES:
+  # Use git remotes (default)
+  $(basename "$0")
+
+  # Extract specific hosts
+  $(basename "$0") --hosts github.com-kokorolx,gitlab.com-kokorolee
+
+  # Fail on missing keys
+  $(basename "$0") --strict
+
+EOF
+  exit "${1:-0}"
+}
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --hosts)
+      HOSTS="$2"
+      shift 2
+      ;;
+    --strict)
+      STRICT_MODE=1
+      shift
+      ;;
+    --help|-h)
+      usage 0
+      ;;
+    *)
+      echo "❌ Unknown option: $1"
+      usage 1
+      ;;
+  esac
+done
+
+# Validate SSH files exist
+if [ ! -f "$SSH_CONFIG_FILE" ]; then
+  echo "❌ Error: SSH config not found at $SSH_CONFIG_FILE"
+  exit 1
+fi
+
+if [ ! -d "$SSH_DIR" ]; then
+  echo "❌ Error: SSH directory not found at $SSH_DIR"
+  exit 1
+fi
+
+# Get hosts from git remotes if not specified
+if [ -z "$HOSTS" ]; then
+  HOSTS=$(git config --get-regexp 'remote\..*\.url' 2>/dev/null | sed -E 's/.*@([^:]+):.*/\1/' | sort -u)
+  
+  if [ -z "$HOSTS" ]; then
+    echo "⚠️  No git remotes found with SSH URLs and no --hosts specified"
+    usage 1
+  fi
+fi
+
+# Normalize hosts to newline-separated
+HOSTS=$(echo "$HOSTS" | tr ',' '\n' | tr ' ' '\n' | sort -u | grep -v '^$')
+
+echo "📋 Found git remotes using:"
+echo "$HOSTS" | sed 's/^/  - /'
+echo ""
+
+# Create temp directories
+rm -rf "$TEMP_CONFIG" "$TEMP_KEYS_DIR"
+mkdir -p "$TEMP_KEYS_DIR"
+
+# Start with Host * (global settings)
+{
+  awk '/^Host \*$/,/^Host [a-zA-Z0-9]/ { if (/^Host [a-zA-Z0-9]/ && !/^Host \*$/) exit; print }' "$SSH_CONFIG_FILE"
+  echo ""
+} >> "$TEMP_CONFIG"
+
+# Extract Host blocks for each needed host
+failed_keys=0
+while IFS= read -r host; do
+  [ -z "$host" ] && continue
+  
+  echo "Extracting SSH config for: $host"
+  
+  # Extract the Host block using awk variable (proper quoting)
+  if ! awk -v target="$host" '
+    /^Host / && $2 == target {
+      found=1
+    }
+    found {
+      if (/^Host / && $2 != target) {
+        exit
+      }
+      print
+    }
+  ' "$SSH_CONFIG_FILE" >> "$TEMP_CONFIG"; then
+    echo "  ⚠️  Failed to extract Host block (may not exist)"
+    continue
+  fi
+  
+  # Extract IdentityFile paths from this Host block
+  keys=$(awk -v target="$host" '
+    /^Host / && $2 == target {
+      found=1
+    }
+    found {
+      if (/^Host / && $2 != target) {
+        exit
+      }
+      if (/^[[:space:]]*IdentityFile[[:space:]]+/) {
+        gsub(/^[[:space:]]*IdentityFile[[:space:]]+/, "")
+        # Expand tilde using shell variable
+        if ($0 ~ /^~/) {
+          sub(/^~/, "'"$HOME"'")
+        }
+        print
+      }
+    }
+  ' "$SSH_CONFIG_FILE")
+  
+  if [ -z "$keys" ]; then
+    echo "  ⚠️  No IdentityFile entries found"
+  else
+    while IFS= read -r keypath; do
+      [ -z "$keypath" ] && continue
+      
+      if [ -f "$keypath" ]; then
+        COLLECTED_KEYS+=("$keypath")
+        echo "  ✓ Found key: $keypath"
+      else
+        echo "  ✗ Key not found: $keypath"
+        ((failed_keys++))
+        if [ $STRICT_MODE -eq 1 ]; then
+          echo "❌ Strict mode: aborting due to missing key"
+          exit 1
+        fi
+      fi
+    done <<< "$keys"
+  fi
+  
+  echo ""
+done <<< "$HOSTS"
+
+# Fix paths in config: change /Users/tamlh or ~ to ~/.ssh for portability
+echo "🔧 Fixing paths in SSH config..."
+sed -i.bak \
+  -e "s|IdentityFile /Users/[^/]*/\.ssh/|IdentityFile ~/.ssh/|g" \
+  -e "s|IdentityFile /home/[^/]*/\.ssh/|IdentityFile ~/.ssh/|g" \
+  "$TEMP_CONFIG"
+rm -f "$TEMP_CONFIG.bak"
+
+echo ""
+echo "📋 Filtered SSH config:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+cat "$TEMP_CONFIG"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+if [ ${#COLLECTED_KEYS[@]} -gt 0 ]; then
+  echo ""
+  echo "🔑 Collected SSH keys (${#COLLECTED_KEYS[@]} total):"
+  
+  # Remove duplicates
+  mapfile -t COLLECTED_KEYS < <(printf '%s\n' "${COLLECTED_KEYS[@]}" | sort -u)
+  
+  for keypath in "${COLLECTED_KEYS[@]}"; do
+    filename=$(basename "$keypath")
+    cp "$keypath" "$TEMP_KEYS_DIR/$filename"
+    echo "  ✓ $filename"
+  done
+  
+  echo ""
+  echo "🚀 To use in Docker container:"
+  echo "  1. Copy config:  docker cp $TEMP_CONFIG <container>:/home/agent/.ssh/config"
+  echo "  2. Copy keys:    docker cp $TEMP_KEYS_DIR/. <container>:/home/agent/.ssh/"
+  echo "  3. Set perms:    docker exec <container> chmod 600 /home/agent/.ssh/id_rsa*"
+else
+  echo "⚠️  No SSH keys were found!"
+fi
+
+echo ""
+echo "📁 Temporary files:"
+echo "  Config: $TEMP_CONFIG"
+echo "  Keys:   $TEMP_KEYS_DIR"
+
+if [ $failed_keys -gt 0 ]; then
+  echo ""
+  echo "⚠️  $failed_keys key(s) were missing (use --strict to fail on these)"
+fi
