@@ -1,16 +1,3 @@
-#!/usr/bin/env bash
-set -e
-
-# Get the project root directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-PROJECT_BIN="$PROJECT_ROOT/bin"
-
-# Create project bin directory
-mkdir -p "$PROJECT_BIN"
-
-# Generate ai-run wrapper script
-cat > "$PROJECT_BIN/ai-run" << 'AIRUNEOF'
 set -e
 
 TOOL="$1"
@@ -195,13 +182,3 @@ docker run --rm -it \
   -w "$CURRENT_DIR" \
   --env-file "$ENV_FILE" \
   "$IMAGE" "$@"
-AIRUNEOF
-
-chmod +x "$PROJECT_BIN/ai-run"
-
-# Create symlink in user's bin directory
-mkdir -p "$HOME/bin"
-ln -sf "$PROJECT_BIN/ai-run" "$HOME/bin/ai-run"
-
-echo "✅ ai-run script created at $PROJECT_BIN/ai-run"
-echo "✅ Symlinked to $HOME/bin/ai-run"

@@ -129,6 +129,49 @@ cat ~/.ai-workspaces
 Each tool supports project-specific config files:
 - `.claude.json`, `.gemini.json`, `.aider.conf`, etc.
 
+### Git Workflow
+AI tools work **inside** containers without Git credentials by default (secure).
+
+**Option 1: Secure (Default) - Review & Commit from Host**
+```bash
+# 1. AI tool makes changes
+ai-run claude  # Edits files in your workspace
+
+# 2. Review changes on host
+git diff
+
+# 3. Commit from host (you have full control)
+git add .
+git commit -m "feat: changes suggested by AI"
+git push
+```
+
+**Option 2: Enable Git Access (Interactive Prompt)**
+When you run an AI tool, you'll be prompted:
+```
+🔐 Git Access Control
+Allow AI tool to access Git credentials for this workspace?
+
+  1) Yes, allow once (this session only)
+  2) Yes, always allow for this workspace
+  3) No, keep Git disabled (secure default)
+```
+
+**Managing Git access:**
+```bash
+# View allowed workspaces
+cat ~/.ai-git-allowed
+
+# Remove a workspace from allowed list
+nano ~/.ai-git-allowed  # Delete the line
+```
+
+**Why this is secure:**
+- ✅ Opt-in per workspace (not global)
+- ✅ SSH keys mounted read-only
+- ✅ You control which projects get Git access
+- ✅ Easy to revoke access anytime
+
 ## 🔐 Security Model
 
 ```
