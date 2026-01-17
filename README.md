@@ -4,6 +4,8 @@
 
 AI coding tools like Claude, Gemini, and Aider have full access to your filesystem, environment variables, and terminal. This project sandboxes them in Docker containers with **strict security restrictions**.
 
+*Last updated: Saturday, January 17, 2026*
+
 ## 🛡️ Why Use This?
 
 Without sandbox:
@@ -35,6 +37,42 @@ ai-run gemini          # Sandboxed Gemini CLI
 ai-run aider           # Sandboxed Aider
 ```
 
+## 🐳 Using Pre-Built Images
+
+**Skip the build process!** Pull pre-built images directly from GitLab Container Registry:
+
+```bash
+# Pull a specific tool image
+docker pull registry.gitlab.com/kokorolee/ai-sandbox-wrapper/ai-claude:latest
+docker pull registry.gitlab.com/kokorolee/ai-sandbox-wrapper/ai-gemini:latest
+docker pull registry.gitlab.com/kokorolee/ai-sandbox-wrapper/ai-aider:latest
+
+# Or let setup.sh pull them automatically
+./setup.sh  # Select tools, images will be pulled if available
+```
+
+**Available pre-built images:**
+- `ai-base:latest` - Base image with Bun runtime
+- `ai-amp:latest` - Sourcegraph Amp
+- `ai-claude:latest` - Claude Code CLI
+- `ai-droid:latest` - Factory CLI
+- `ai-gemini:latest` - Google Gemini CLI
+- `ai-kilo:latest` - Kilo Code (500+ models)
+- `ai-codex:latest` - OpenAI Codex
+- `ai-aider:latest` - AI pair programmer
+- `ai-opencode:latest` - Open-source AI coding
+- `ai-qwen:latest` - Alibaba Qwen (1M context)
+- `ai-qoder:latest` - Qoder AI assistant
+- `ai-auggie:latest` - Augment Auggie
+- `ai-codebuddy:latest` - Tencent CodeBuddy
+- `ai-jules:latest` - Google Jules
+- `ai-shai:latest` - OVHcloud SHAI
+
+**Benefits:**
+- ⚡ **Faster setup** - No build time (seconds vs minutes)
+- ✅ **CI-tested** - All images verified in GitLab CI
+- 🔄 **Auto-updated** - Latest versions on every push to beta branch
+
 ## 📦 Supported Tools
 
 ### CLI Tools (Terminal-based)
@@ -48,7 +86,7 @@ ai-run aider           # Sandboxed Aider
 | **kilo** | ✅ | npm/Bun | Kilo Code (500+ models) |
 | **codex** | ✅ | npm/Bun | OpenAI Codex agent |
 | **amp** | ✅ | npm/Bun | Sourcegraph Amp |
-| **qwen** | ✅ | npm/Bun | Alibaba Qwen CLI |
+| **qwen** | ✅ | npm/Bun | Alibaba Qwen CLI (1M context) |
 | **droid** | ✅ | Custom | Factory CLI |
 
 ### GUI Tools (IDE/Editor)
