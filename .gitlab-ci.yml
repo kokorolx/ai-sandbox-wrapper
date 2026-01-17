@@ -66,13 +66,16 @@ build_amp:
 
 build_droid:
   stage: build-tools
-  extends: .build_template
+  image: docker:24.0.5
   variables:
     TOOL_NAME: droid
     HOME: /tmp/droid-home
   before_script:
-    - !reference [.build_template, before_script]
+    - apk add --no-cache bash curl
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
     - mkdir -p /tmp/droid-home
+  script:
+    - !reference [.build_template, script]
   needs:
     - build_base
 
