@@ -142,6 +142,7 @@ if grep -q "^$CURRENT_DIR$" "$GIT_ALLOWED_FILE" 2>/dev/null; then
 
       dst_dir=$(dirname "$dst_file")
       mkdir -p "$dst_dir"
+      chmod 700 "$dst_dir"
 
       if [ -f "$src_file" ]; then
         cp "$src_file" "$dst_file"
@@ -160,8 +161,10 @@ if grep -q "^$CURRENT_DIR$" "$GIT_ALLOWED_FILE" 2>/dev/null; then
       chmod 600 "$GIT_CACHE_DIR/ssh/known_hosts"
     fi
 
+    # Ensure all directories have correct permissions (recursive)
     chmod 700 "$GIT_CACHE_DIR/ssh"
     find "$GIT_CACHE_DIR/ssh" -type d -exec chmod 700 {} \;
+    find "$GIT_CACHE_DIR/ssh" -type f ! -name "config" ! -name "known_hosts" -exec chmod 600 {} \;
 
     GIT_MOUNTS="$GIT_MOUNTS -v $GIT_CACHE_DIR/ssh:/home/agent/.ssh:ro"
     echo "✅ Git credentials synced"
@@ -223,6 +226,7 @@ else
               # Create parent directory with correct permissions
               dst_dir=$(dirname "$dst_file")
               mkdir -p "$dst_dir"
+              chmod 700 "$dst_dir"
 
               # Copy the file and set permissions
               if [ -f "$src_file" ]; then
@@ -246,9 +250,10 @@ else
               chmod 600 "$GIT_CACHE_DIR/ssh/known_hosts"
             fi
 
-            # Ensure ssh directory has correct permissions
+            # Ensure all directories and files have correct permissions (recursive)
             chmod 700 "$GIT_CACHE_DIR/ssh"
             find "$GIT_CACHE_DIR/ssh" -type d -exec chmod 700 {} \;
+            find "$GIT_CACHE_DIR/ssh" -type f ! -name "config" ! -name "known_hosts" -exec chmod 600 {} \;
 
             GIT_MOUNTS="$GIT_MOUNTS -v $GIT_CACHE_DIR/ssh:/home/agent/.ssh:ro"
 
