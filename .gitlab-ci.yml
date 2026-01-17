@@ -55,6 +55,14 @@ build_base:
     - bash lib/install-base.sh
     - docker tag ai-base:latest $CI_REGISTRY_IMAGE/ai-base:latest
     - docker push $CI_REGISTRY_IMAGE/ai-base:latest
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: manual
+    - changes:
+        - lib/install-base.sh
+        - dockerfiles/base/Dockerfile
+      when: always
+    - when: never
 
 build_amp:
   stage: build-tools
