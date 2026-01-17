@@ -168,6 +168,7 @@ nano ~/.ai-git-allowed  # Delete the line
 
 **Why this is secure:**
 - ✅ Opt-in per workspace (not global)
+- ✅ Granular control: Only selected keys and their matching Host configs are shared
 - ✅ SSH keys mounted read-only
 - ✅ You control which projects get Git access
 - ✅ Easy to revoke access anytime

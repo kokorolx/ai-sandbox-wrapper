@@ -134,7 +134,11 @@ if grep -q "^$CURRENT_DIR$" "$GIT_ALLOWED_FILE" 2>/dev/null; then
     mkdir -p "$GIT_CACHE_DIR/ssh"
 
     # Read saved keys and copy them
-    mapfile -t SAVED_KEYS < "$SAVED_KEYS_FILE"
+    SAVED_KEYS=()
+    while IFS= read -r key; do
+      [ -n "$key" ] && SAVED_KEYS+=("$key")
+    done < "$SAVED_KEYS_FILE"
+
     for key in "${SAVED_KEYS[@]}"; do
       [ -z "$key" ] && continue
       src_file="$HOME/.ssh/$key"
@@ -154,7 +158,9 @@ if grep -q "^$CURRENT_DIR$" "$GIT_ALLOWED_FILE" 2>/dev/null; then
     if [ -f "$HOME/.ssh/config" ]; then
       SETUP_SSH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/setup-ssh-config"
       if [ -x "$SETUP_SSH" ]; then
-        output=$("$SETUP_SSH" 2>&1)
+        # Join SAVED_KEYS into a comma-separated string for --keys
+        KEYS_ARG=$(IFS=,; echo "${SAVED_KEYS[*]}")
+        output=$("$SETUP_SSH" --keys "$KEYS_ARG" 2>&1)
         TEMP_CONFIG=$(echo "$output" | grep "Config:" | tail -1 | awk '{print $NF}')
         if [ -f "$TEMP_CONFIG" ]; then
           cp "$TEMP_CONFIG" "$GIT_CACHE_DIR/ssh/config"
@@ -256,8 +262,10 @@ else
               # Run setup-ssh-config to get filtered config
               SETUP_SSH="$SCRIPT_DIR/setup-ssh-config"
               if [ -x "$SETUP_SSH" ]; then
+                # Join SELECTED_SSH_KEYS into a comma-separated string for --keys
+                KEYS_ARG=$(IFS=,; echo "${SELECTED_SSH_KEYS[*]}")
                 # Run it and capture the filtered config path
-                output=$("$SETUP_SSH" 2>&1)
+                output=$("$SETUP_SSH" --keys "$KEYS_ARG" 2>&1)
                 TEMP_CONFIG=$(echo "$output" | grep "Config:" | tail -1 | awk '{print $NF}')
                 if [ -f "$TEMP_CONFIG" ]; then
                   cp "$TEMP_CONFIG" "$GIT_CACHE_DIR/ssh/config"

@@ -22,6 +22,8 @@ Extract SSH config entries and keys needed for git remotes (or custom hosts).
 OPTIONS:
   --hosts HOSTS         Comma/space-separated list of SSH host aliases to extract
                         (default: auto-detect from git remotes)
+  --keys KEYS           Comma/space-separated list of SSH key filenames (e.g. id_rsa)
+                        to filter by. Only hosts using these keys will be included.
   --strict              Fail if any key file is missing (default: warn and continue)
   --help                Show this help message
 
@@ -32,6 +34,9 @@ EXAMPLES:
   # Extract specific hosts
   $(basename "$0") --hosts github.com-kokorolx,gitlab.com-kokorolee
 
+  # Filter by specific keys
+  $(basename "$0") --keys id_rsa_work,id_ed25519_personal
+
   # Fail on missing keys
   $(basename "$0") --strict
 
@@ -40,10 +45,15 @@ EOF
 }
 
 # Parse arguments
+ALLOWED_KEYS_INPUT=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --hosts)
       HOSTS="$2"
+      shift 2
+      ;;
+    --keys)
+      ALLOWED_KEYS_INPUT="$2"
       shift 2
       ;;
     --strict)
@@ -71,12 +81,66 @@ if [ ! -d "$SSH_DIR" ]; then
   exit 1
 fi
 
-# Get hosts from git remotes if not specified
-if [ -z "$HOSTS" ]; then
-  HOSTS=$(git config --get-regexp 'remote\..*\.url' 2>/dev/null | sed -E 's/.*@([^:]+):.*/\1/' | sort -u)
-  
+# Normalize allowed keys to array of basenames
+ALLOWED_KEYS=()
+if [ -n "$ALLOWED_KEYS_INPUT" ]; then
+  IFS=', ' read -r -a keys_array <<< "$ALLOWED_KEYS_INPUT"
+  for k in "${keys_array[@]}"; do
+    [ -z "$k" ] && continue
+    ALLOWED_KEYS+=("$(basename "$k")")
+  done
+fi
+
+# Get hosts from keys if provided, otherwise from git remotes if --hosts not specified
+if [ ${#ALLOWED_KEYS[@]} -gt 0 ]; then
+  echo "🔑 Filtering by keys: ${ALLOWED_KEYS[*]}"
+
+  # Find all Host entries that use any of the allowed keys
+  # This awk script finds Host blocks and checks if any IdentityFile matches our allowed keys
+  MATCHING_HOSTS=$(awk -v keys="${ALLOWED_KEYS[*]}" '
+    BEGIN {
+      split(keys, k_arr, " ");
+      for (i in k_arr) allowed_keys[k_arr[i]] = 1;
+    }
+    /^Host / {
+      if (current_host != "" && host_matches) {
+        print current_host
+      }
+      current_host = $2;
+      host_matches = 0;
+    }
+    /^[[:space:]]*IdentityFile[[:space:]]+/ {
+      split($2, path_parts, "/");
+      filename = path_parts[length(path_parts)];
+      # Remove any trailing comments or quotes
+      gsub(/[[:space:]].*$/, "", filename);
+      gsub(/^"|"$/, "", filename);
+
+      if (allowed_keys[filename]) {
+        host_matches = 1;
+      }
+    }
+    END {
+      if (current_host != "" && host_matches) {
+        print current_host
+      }
+    }
+  ' "$SSH_CONFIG_FILE")
+
   if [ -z "$HOSTS" ]; then
-    echo "⚠️  No git remotes found with SSH URLs and no --hosts specified"
+    HOSTS="$MATCHING_HOSTS"
+  fi
+
+  if [ -z "$HOSTS" ]; then
+    echo "⚠️  No Host entries found in SSH config matching the provided keys."
+    # We allow it to continue if hosts were explicitly provided, otherwise exit
+    if [ -z "$ALLOWED_KEYS_INPUT" ]; then exit 1; fi
+  fi
+elif [ -z "$HOSTS" ]; then
+  HOSTS=$(git config --get-regexp 'remote\..*\.url' 2>/dev/null | sed -E 's/.*@([^:]+):.*/\1/' | sort -u)
+
+  if [ -z "$HOSTS" ]; then
+    echo "⚠️  No git remotes found with SSH URLs and no --hosts/--keys specified"
     usage 1
   fi
 fi
@@ -84,7 +148,7 @@ fi
 # Normalize hosts to newline-separated
 HOSTS=$(echo "$HOSTS" | tr ',' '\n' | tr ' ' '\n' | sort -u | grep -v '^$')
 
-echo "📋 Found git remotes using:"
+echo "📋 Processing hosts:"
 echo "$HOSTS" | sed 's/^/  - /'
 echo ""
 
@@ -102,27 +166,58 @@ mkdir -p "$TEMP_KEYS_DIR"
 failed_keys=0
 while IFS= read -r host; do
   [ -z "$host" ] && continue
-  
-  echo "Extracting SSH config for: $host"
-  
-  # Extract the Host block using awk variable (proper quoting)
-  if ! awk -v target="$host" '
+
+  echo "Processing SSH config for host: $host"
+
+  # Extract the Host block and filter IdentityFile entries if keys were provided
+  # We use awk to:
+  # 1. Find the Host block
+  # 2. Within that block, if --keys were provided, only keep IdentityFile lines that match
+  # 3. If no --keys provided, keep all IdentityFile lines
+  awk -v target="$host" -v keys="${ALLOWED_KEYS[*]}" '
+    BEGIN {
+      use_key_filter = (keys != "");
+      split(keys, k_arr, " ");
+      for (i in k_arr) allowed_keys[k_arr[i]] = 1;
+    }
     /^Host / && $2 == target {
-      found=1
+      found=1;
+      print;
+      next;
     }
     found {
       if (/^Host / && $2 != target) {
-        exit
+        exit;
       }
-      print
+
+      if (/^[[:space:]]*IdentityFile[[:space:]]+/) {
+        if (!use_key_filter) {
+          print;
+        } else {
+          # Check if this IdentityFile is allowed
+          line = $0;
+          split($2, path_parts, "/");
+          filename = path_parts[length(path_parts)];
+          gsub(/[[:space:]].*$/, "", filename);
+          gsub(/^"|"$/, "", filename);
+
+          if (allowed_keys[filename]) {
+            print line;
+          }
+        }
+      } else {
+        print;
+      }
     }
-  ' "$SSH_CONFIG_FILE" >> "$TEMP_CONFIG"; then
-    echo "  ⚠️  Failed to extract Host block (may not exist)"
-    continue
-  fi
-  
-  # Extract IdentityFile paths from this Host block
-  keys=$(awk -v target="$host" '
+  ' "$SSH_CONFIG_FILE" >> "$TEMP_CONFIG"
+
+  # Extract IdentityFile paths to copy
+  keys_to_copy=$(awk -v target="$host" -v keys="${ALLOWED_KEYS[*]}" '
+    BEGIN {
+      use_key_filter = (keys != "");
+      split(keys, k_arr, " ");
+      for (i in k_arr) allowed_keys[k_arr[i]] = 1;
+    }
     /^Host / && $2 == target {
       found=1
     }
@@ -131,79 +226,101 @@ while IFS= read -r host; do
         exit
       }
       if (/^[[:space:]]*IdentityFile[[:space:]]+/) {
+        orig_line = $0;
         gsub(/^[[:space:]]*IdentityFile[[:space:]]+/, "")
-        # Expand tilde using shell variable
-        if ($0 ~ /^~/) {
-          sub(/^~/, "'"$HOME"'")
+        path = $0
+        gsub(/[[:space:]].*$/, "", path); # Remove comments
+        gsub(/^"|"$/, "", path); # Remove quotes
+
+        # Check if allowed if filter is active
+        split(path, path_parts, "/");
+        filename = path_parts[length(path_parts)];
+
+        if (!use_key_filter || allowed_keys[filename]) {
+          # Expand tilde using shell variable
+          if (path ~ /^~/) {
+            sub(/^~/, "'"$HOME"'", path)
+          }
+          print path
         }
-        print
       }
     }
   ' "$SSH_CONFIG_FILE")
-  
-  if [ -z "$keys" ]; then
-    echo "  ⚠️  No IdentityFile entries found"
+
+  if [ -z "$keys_to_copy" ]; then
+    echo "  ⚠️  No matching IdentityFile entries found for this host"
   else
     while IFS= read -r keypath; do
       [ -z "$keypath" ] && continue
-      
+
       if [ -f "$keypath" ]; then
         COLLECTED_KEYS+=("$keypath")
         echo "  ✓ Found key: $keypath"
       else
-        echo "  ✗ Key not found: $keypath"
-        ((failed_keys++))
-        if [ $STRICT_MODE -eq 1 ]; then
-          echo "❌ Strict mode: aborting due to missing key"
-          exit 1
+        # Try relative to SSH_DIR if not absolute and not found
+        if [[ "$keypath" != /* ]] && [ -f "$SSH_DIR/$keypath" ]; then
+          COLLECTED_KEYS+=("$SSH_DIR/$keypath")
+          echo "  ✓ Found key: $SSH_DIR/$keypath"
+        else
+          echo "  ✗ Key not found: $keypath"
+          ((failed_keys++))
+          if [ $STRICT_MODE -eq 1 ]; then
+            echo "❌ Strict mode: aborting due to missing key"
+            exit 1
+          fi
         fi
       fi
-    done <<< "$keys"
+    done <<< "$keys_to_copy"
   fi
-  
+
   echo ""
 done <<< "$HOSTS"
 
 # Fix paths in config: change /Users/tamlh or ~ to ~/.ssh for portability
 echo "🔧 Fixing paths in SSH config..."
+# Also normalize any absolute paths to ~/.ssh/ for the container
 sed -i.bak \
   -e "s|IdentityFile /Users/[^/]*/\.ssh/|IdentityFile ~/.ssh/|g" \
   -e "s|IdentityFile /home/[^/]*/\.ssh/|IdentityFile ~/.ssh/|g" \
+  -e "s|IdentityFile \./|IdentityFile ~/.ssh/|g" \
   "$TEMP_CONFIG"
 rm -f "$TEMP_CONFIG.bak"
 
 echo ""
 echo "📋 Filtered SSH config:"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-cat "$TEMP_CONFIG"
+if [ -f "$TEMP_CONFIG" ]; then
+  cat "$TEMP_CONFIG"
+else
+  echo "(Empty config)"
+fi
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 if [ ${#COLLECTED_KEYS[@]} -gt 0 ]; then
+  # Remove duplicates (bash 3.2 compatible)
+  UNIQUE_KEYS=()
+  while IFS= read -r key; do
+    if [[ -n "$key" ]]; then
+      UNIQUE_KEYS+=("$key")
+    fi
+  done < <(printf '%s\n' "${COLLECTED_KEYS[@]}" | sort -u)
+
   echo ""
-  echo "🔑 Collected SSH keys (${#COLLECTED_KEYS[@]} total):"
-  
-  # Remove duplicates
-  mapfile -t COLLECTED_KEYS < <(printf '%s\n' "${COLLECTED_KEYS[@]}" | sort -u)
-  
-  for keypath in "${COLLECTED_KEYS[@]}"; do
+  echo "🔑 Collected SSH keys (${#UNIQUE_KEYS[@]} total):"
+
+  for keypath in "${UNIQUE_KEYS[@]}"; do
     filename=$(basename "$keypath")
     cp "$keypath" "$TEMP_KEYS_DIR/$filename"
     echo "  ✓ $filename"
   done
-  
+
   echo ""
-  echo "🚀 To use in Docker container:"
-  echo "  1. Copy config:  docker cp $TEMP_CONFIG <container>:/home/agent/.ssh/config"
-  echo "  2. Copy keys:    docker cp $TEMP_KEYS_DIR/. <container>:/home/agent/.ssh/"
-  echo "  3. Set perms:    docker exec <container> chmod 600 /home/agent/.ssh/id_rsa*"
+  echo "🚀 Info:"
+  echo "  Config: $TEMP_CONFIG"
+  echo "  Keys:   $TEMP_KEYS_DIR"
 else
   echo "⚠️  No SSH keys were found!"
 fi
-
-echo ""
-echo "📁 Temporary files:"
-echo "  Config: $TEMP_CONFIG"
-echo "  Keys:   $TEMP_KEYS_DIR"
 
 if [ $failed_keys -gt 0 ]; then
   echo ""
