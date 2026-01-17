@@ -15,10 +15,8 @@ mkdir -p "$HOME/.ai-home/$TOOL"
 cat <<'EOF' > "dockerfiles/$TOOL/Dockerfile"
 FROM ai-base:latest
 USER root
-# Install aider using official installer and relocate to /usr/local/bin
-RUN curl -LsSf https://aider.chat/install.sh | sh && \
-    mv /root/.local/bin/aider /usr/local/bin/aider && \
-    chmod +x /usr/local/bin/aider
+# Install aider via pip
+RUN pip install --no-cache-dir aider-chat
 USER agent
 ENTRYPOINT ["aider"]
 EOF
