@@ -69,6 +69,10 @@ build_droid:
   extends: .build_template
   variables:
     TOOL_NAME: droid
+    HOME: /tmp/droid-home
+  before_script:
+    - !reference [.build_template, before_script]
+    - mkdir -p /tmp/droid-home
   needs:
     - build_base
 
