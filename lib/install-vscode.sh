@@ -8,12 +8,12 @@ VSCODE_PORT="${VSCODE_PORT:-8000}"
 echo "Installing $TOOL (VSCode Server - browser-based)..."
 
 # Create directories
-mkdir -p "$HOME/ai-images/$TOOL"
+mkdir -p "dockerfiles/$TOOL"
 mkdir -p "$HOME/.ai-cache/$TOOL"
 mkdir -p "$HOME/.ai-home/$TOOL"
 
 # Create Dockerfile for VSCode Desktop (with X11 forwarding)
-cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
+cat <<'EOF' > "dockerfiles/$TOOL/Dockerfile"
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -84,7 +84,7 @@ EOF
 
 # Build image
 echo "Building Docker image for $TOOL..."
-docker build -t "ai-$TOOL:latest" "$HOME/ai-images/$TOOL"
+docker build -t "ai-$TOOL:latest" "dockerfiles/$TOOL"
 
 # Create wrapper script
 cat <<'EOF' > "$HOME/bin/vscode-run"

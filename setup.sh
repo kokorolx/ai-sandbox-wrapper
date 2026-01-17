@@ -232,8 +232,8 @@ echo "📁 Whitelisted workspaces saved to: $WORKSPACES_FILE"
 WORKSPACE="${WORKSPACES[0]}"
 
 # Tool definitions
-TOOL_OPTIONS="amp,opencode,droid,claude,gemini,kilo,qwen,codex,aider,qoder,auggie,codebuddy,jules,shai,vscode,codeserver"
-TOOL_DESCS="AI coding assistant from @sourcegraph/amp,Open-source coding tool from opencode-ai,Factory CLI from factory.ai,Claude Code CLI from Anthropic,Google Gemini CLI (free tier),Kilo Code (500+ models),Alibaba Qwen CLI (256K context),OpenAI Codex terminal agent,AI pair programmer (Git-native),Qoder AI CLI assistant,Augment Auggie CLI,Tencent CodeBuddy CLI,Google Jules CLI,OVHcloud SHAI agent,VSCode Desktop in Docker (X11),VSCode in browser (fast)"
+TOOL_OPTIONS="amp,opencode,droid,claude,gemini,kilo,qwen,codex,qoder,auggie,codebuddy,jules,shai,vscode,codeserver"
+TOOL_DESCS="AI coding assistant from @sourcegraph/amp,Open-source coding tool from opencode-ai,Factory CLI from factory.ai,Claude Code CLI from Anthropic,Google Gemini CLI (free tier),Kilo Code (500+ models),Alibaba Qwen CLI (1M context),OpenAI Codex terminal agent,Qoder AI CLI assistant,Augment Auggie CLI,Tencent CodeBuddy CLI,Google Jules CLI,OVHcloud SHAI agent,VSCode Desktop in Docker (X11),VSCode in browser (fast)"
 
 # Interactive multi-select
 multi_select "Select AI Tools to Install" "$TOOL_OPTIONS" "$TOOL_DESCS"
@@ -302,9 +302,6 @@ for tool in "${TOOLS[@]}"; do
       ;;
     codex)
       bash "$SCRIPT_DIR/lib/install-codex.sh"
-      ;;
-    aider)
-      bash "$SCRIPT_DIR/lib/install-aider.sh"
       ;;
     qoder)
       bash "$SCRIPT_DIR/lib/install-qoder.sh"

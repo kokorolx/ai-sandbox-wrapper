@@ -8,14 +8,14 @@ CODESERVER_PORT="${CODESERVER_PORT:-8080}"
 echo "Installing $TOOL (code-server - browser-based VSCode)..."
 
 # Create directories
-mkdir -p "$HOME/ai-images/$TOOL"
+mkdir -p "dockerfiles/$TOOL"
 mkdir -p "$HOME/.ai-cache/$TOOL"
 mkdir -p "$HOME/.ai-home/$TOOL"
 
 WORKSPACES_FILE="$HOME/.ai-workspaces"
 
 # Create Dockerfile for code-server
-cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
+cat <<'EOF' > "dockerfiles/$TOOL/Dockerfile"
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -58,7 +58,7 @@ EOF
 
 # Build image
 echo "Building Docker image for $TOOL..."
-docker build -t "ai-$TOOL:latest" "$HOME/ai-images/$TOOL"
+docker build -t "ai-$TOOL:latest" "dockerfiles/$TOOL"
 
 # Create wrapper script
 cat <<'EOF' > "$HOME/bin/codeserver-run"

@@ -8,12 +8,12 @@ TOOL="kilo"
 echo "Installing $TOOL (Kilo Code CLI)..."
 
 # Create directories
-mkdir -p "$HOME/ai-images/$TOOL"
+mkdir -p "dockerfiles/$TOOL"
 mkdir -p "$HOME/.ai-cache/$TOOL"
 mkdir -p "$HOME/.ai-home/$TOOL"
 
 # Create Dockerfile - use Node.js for this tool due to Bun compatibility issue
-cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
+cat <<'EOF' > "dockerfiles/$TOOL/Dockerfile"
 FROM node:22-slim
 
 # Install dependencies
@@ -43,7 +43,7 @@ EOF
 
 # Build image
 echo "Building Docker image for $TOOL..."
-docker build -t "ai-$TOOL:latest" "$HOME/ai-images/$TOOL"
+docker build -t "ai-$TOOL:latest" "dockerfiles/$TOOL"
 
 echo "✅ $TOOL installed"
 echo ""

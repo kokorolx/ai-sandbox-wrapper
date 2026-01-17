@@ -7,12 +7,12 @@ TOOL="amp"
 echo "Installing $TOOL (Sourcegraph Amp)..."
 
 # Create directories
-mkdir -p "$HOME/ai-images/$TOOL"
+mkdir -p "dockerfiles/$TOOL"
 mkdir -p "$HOME/.ai-cache/$TOOL"
 mkdir -p "$HOME/.ai-home/$TOOL"
 
 # Create Dockerfile (extends base image for faster builds)
-cat <<'EOF' > "$HOME/ai-images/$TOOL/Dockerfile"
+cat <<'EOF' > "dockerfiles/$TOOL/Dockerfile"
 FROM ai-base:latest
 USER root
 # Install Amp globally into a persistent directory (not shadowed by home)
@@ -27,7 +27,7 @@ EOF
 
 # Build image
 echo "Building Docker image for $TOOL..."
-docker build -t "ai-$TOOL:latest" "$HOME/ai-images/$TOOL"
+docker build -t "ai-$TOOL:latest" "dockerfiles/$TOOL"
 
 echo "✅ $TOOL installed"
 echo ""

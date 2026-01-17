@@ -29,6 +29,22 @@ before_script:
     # We need to tag the image properly before pushing,
     # but install scripts tag as ai-$TOOL:latest locally.
     - docker tag ai-$TOOL_NAME:latest $IMAGE_TAG
+    - echo "Verifying tool works..."
+    - |
+      set +e
+      docker run --rm $IMAGE_TAG $TOOL_NAME --version 2>&1 | head -5
+      VERSION_EXIT=$?
+      if [ $VERSION_EXIT -ne 0 ]; then
+        echo "Trying --help instead..."
+        docker run --rm $IMAGE_TAG $TOOL_NAME --help 2>&1 | head -10
+        HELP_EXIT=$?
+        if [ $HELP_EXIT -ne 0 ]; then
+          echo "ERROR: Tool verification failed! Binary may not be in PATH or is broken."
+          exit 1
+        fi
+      fi
+      set -e
+    - echo "Verification passed! Pushing image..."
     - docker push $IMAGE_TAG
 
 build_base:
@@ -40,11 +56,74 @@ build_base:
     - docker tag ai-base:latest $CI_REGISTRY_IMAGE/ai-base:latest
     - docker push $CI_REGISTRY_IMAGE/ai-base:latest
 
-build_tools:
+build_amp:
   stage: build-tools
   extends: .build_template
-  parallel:
-    matrix:
-      - TOOL_NAME: [claude, opencode, gemini, aider, kilo, codex, amp, qwen, droid]
+  variables:
+    TOOL_NAME: amp
+  needs:
+    - build_base
+
+build_droid:
+  stage: build-tools
+  extends: .build_template
+  variables:
+    TOOL_NAME: droid
+  needs:
+    - build_base
+
+build_claude:
+  stage: build-tools
+  extends: .build_template
+  variables:
+    TOOL_NAME: claude
+  needs:
+    - build_base
+
+build_opencode:
+  stage: build-tools
+  extends: .build_template
+  variables:
+    TOOL_NAME: opencode
+  needs:
+    - build_base
+
+build_gemini:
+  stage: build-tools
+  extends: .build_template
+  variables:
+    TOOL_NAME: gemini
+  needs:
+    - build_base
+
+build_kilo:
+  stage: build-tools
+  extends: .build_template
+  variables:
+    TOOL_NAME: kilo
+  needs:
+    - build_base
+
+build_qwen:
+  stage: build-tools
+  extends: .build_template
+  variables:
+    TOOL_NAME: qwen
+  needs:
+    - build_base
+
+build_codex:
+  stage: build-tools
+  extends: .build_template
+  variables:
+    TOOL_NAME: codex
+  needs:
+    - build_base
+
+build_aider:
+  stage: build-tools
+  extends: .build_template
+  variables:
+    TOOL_NAME: aider
   needs:
     - build_base
