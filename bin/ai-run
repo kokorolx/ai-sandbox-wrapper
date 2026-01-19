@@ -51,7 +51,15 @@ if [[ "$ALLOWED" != "true" ]]; then
   fi
 fi
 
-IMAGE="registry.gitlab.com/kokorolee/ai-sandbox-wrapper/ai-${TOOL}:latest"
+# Image source selection: local or registry (GitLab)
+# Set AI_IMAGE_SOURCE=registry in ~/.ai-env to use pre-built images
+AI_IMAGE_SOURCE="${AI_IMAGE_SOURCE:-local}"
+
+if [[ "$AI_IMAGE_SOURCE" == "registry" ]]; then
+  IMAGE="registry.gitlab.com/kokorolee/ai-sandbox-wrapper/ai-${TOOL}:latest"
+else
+  IMAGE="ai-${TOOL}:latest"
+fi
 
 CACHE_DIR="$HOME/.ai-cache/$TOOL"
 HOME_DIR="$HOME/.ai-home/$TOOL"

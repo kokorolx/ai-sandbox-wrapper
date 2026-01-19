@@ -125,6 +125,24 @@ echo '/path/to/project' >> ~/.ai-workspaces
 cat ~/.ai-workspaces
 ```
 
+### Image Source
+Choose between locally built images or pre-built GitLab registry images:
+
+```bash
+# Add to ~/.ai-env
+
+# Use locally built images (default)
+AI_IMAGE_SOURCE=local
+
+# Use pre-built images from GitLab registry
+AI_IMAGE_SOURCE=registry
+```
+
+Or run with environment variable:
+```bash
+AI_IMAGE_SOURCE=registry ai-run claude
+```
+
 ### Per-Project Config
 Each tool supports project-specific config files:
 - `.claude.json`, `.gemini.json`, `.aider.conf`, etc.
