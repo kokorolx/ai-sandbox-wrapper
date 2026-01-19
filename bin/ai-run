@@ -51,7 +51,7 @@ if [[ "$ALLOWED" != "true" ]]; then
   fi
 fi
 
-IMAGE="ai-${TOOL}:latest"
+IMAGE="registry.gitlab.com/kokorolee/ai-sandbox-wrapper/ai-${TOOL}:latest"
 
 CACHE_DIR="$HOME/.ai-cache/$TOOL"
 HOME_DIR="$HOME/.ai-home/$TOOL"
