@@ -4,6 +4,10 @@
 
 AI coding tools like Claude, Gemini, and Aider have full access to your filesystem, environment variables, and terminal. This project sandboxes them in Docker containers with **strict security restrictions**.
 
+**What this does:** Runs AI tools in secure containers that can only access specific project folders, protecting your SSH keys, API tokens, and other sensitive data.
+
+**What you get:** Peace of mind using AI coding tools without risking your personal and system data.
+
 *Last updated: Thursday, January 22, 2026*
 
 ## 🛡️ Why Use This?
@@ -21,107 +25,97 @@ With AI Sandbox:
 - ✅ Runs as non-root user in container
 - ✅ CAP_DROP=ALL (no elevated privileges)
 
-## 🚀 Quick Start
+## 🚀 Step-by-Step Installation
 
+### Step 1: Prerequisites
+Ensure you have Docker installed and running:
+- **macOS:** [Install Docker Desktop](https://www.docker.com/products/docker-desktop) and start it
+- **Linux:** Install Docker Engine with `curl -fsSL https://get.docker.com | sh`
+- **Windows:** Use WSL2 with Docker Desktop
+
+Verify Docker is working:
 ```bash
+docker --version
+docker ps  # Should not show errors
+```
+
+### Step 2: Download and Setup
+```bash
+# Clone the repository
 git clone https://github.com/kokorolx/ai-sandbox-wrapper.git
 cd ai-sandbox-wrapper
+
+# Run the setup script
 ./setup.sh
 ```
 
-Select tools to install when prompted, then:
+### Step 3: Follow the Interactive Prompts
+1. **Whitelist workspaces** - Enter the directories where you want AI tools to access (e.g., `~/projects,~/code`)
+2. **Select tools** - Use arrow keys to move, space to select, Enter to confirm
+3. **Choose image source** - Select registry (faster) or build locally
 
+### Step 4: Complete Setup
 ```bash
-# Either restart your terminal OR source your shell config:
+# Reload your shell to update PATH
 source ~/.zshrc
 
-# Then run any installed tool:
-ai-run claude          # Sandboxed Claude Code
-ai-run gemini          # Sandboxed Gemini CLI
-ai-run aider           # Sandboxed Aider
-
-# Or use the convenient aliases:
-claude                 # Same as ai-run claude
-gemini                 # Same as ai-run gemini
-aider                  # Same as ai-run aider
+# Add your API keys (only if using tools that require them)
+nano ~/.ai-env  # Add ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.
 ```
 
-## 📋 Prerequisites
-
-Before running `setup.sh`, ensure you have:
-
-| Requirement | Description | Verify Command |
-|-------------|-------------|----------------|
-| **Docker** | Docker Desktop (Mac/Windows) or dockerd (Linux) | `docker --version` |
-| **Git** | For version control operations | `git --version` |
-| **Python 3** | For Python-based tools like Aider | `python3 --version` |
-| **Bash** | Setup script requires bash | `bash --version` |
-| **SSH keys** (optional) | For Git authentication | `ls ~/.ssh/` |
-
-### Platform-Specific Setup
-
-**macOS:**
+### Step 5: Run Your First Tool
 ```bash
-# Install Docker Desktop from https://www.docker.com/products/docker-desktop
-# Ensure Docker Desktop is running (check menubar icon)
+# Navigate to a project directory that's in your whitelisted workspaces
+cd ~/projects/my-project
+
+# Run a tool (the example below assumes you selected Claude during setup)
+claude --version  # or: ai-run claude --version
 ```
 
-**Linux:**
+## 📋 What You Need
+
+**Required:**
+- **Docker** - Docker Desktop (macOS/Windows) or Docker Engine (Linux)
+- **Git** - For cloning the repository
+- **Bash** - For running the setup script
+
+**Optional (for specific tools):**
+- **Python 3** - For tools like Aider
+- **SSH keys** - For Git access in containers
+
+## ✅ After Installation
+
+### Verify Everything Works
 ```bash
-# Install Docker Engine
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER
-# Log out and back in for group changes to take effect
+# Reload your shell to get the new commands
+source ~/.zshrc
+
+# Check if the main command works
+ai-run --help
+
+# Test a tool you installed (replace 'claude' with your chosen tool)
+claude --version
 ```
 
-**Windows (WSL2):**
-```bash
-# Install Docker Desktop and enable WSL2 integration in Docker Desktop settings
-# Use a WSL2 terminal (Ubuntu, etc.) for setup.sh
-```
-
-## ✅ Post-Setup
-
-After running `./setup.sh`, complete these steps:
-
-### 1. Reload Your Shell
-The setup script adds `~/bin` to your PATH and creates aliases. Either:
-```bash
-source ~/.zshrc  # Reload immediately
-# OR restart your terminal
-```
-
-### 2. Configure API Keys
-Edit the environment file to add your API keys:
-```bash
-nano ~/.ai-env
-```
-Required keys vary by tool:
-- **Claude**: `ANTHROPIC_API_KEY`
-- **OpenAI tools** (Aider, Kilo, Codex): `OPENAI_API_KEY`
-- **Gemini**: `GOOGLE_API_KEY` (optional - Gemini CLI has free tier)
-
-### 3. Verify Installation
-```bash
-# List installed tools
-ls ~/bin/
-
-# Test a tool
-ai-run claude --version
-```
-
-### 4. Add Your Projects
-Workspaces are already configured from setup, but you can manage them:
+### Add More Projects Later (Optional)
+If you want to give AI access to more project directories later:
 ```bash
 # Add a new workspace
 echo '/path/to/new/project' >> ~/.ai-workspaces
 
-# Remove a workspace
-nano ~/.ai-workspaces  # Delete the line
-
-# List all whitelisted workspaces
+# View current allowed directories
 cat ~/.ai-workspaces
 ```
+
+### Configure API Keys (If Needed)
+Some tools require API keys to work properly:
+```bash
+nano ~/.ai-env
+```
+Then add your keys in the format: `KEY_NAME=your_actual_key_here`
+Examples:
+- `ANTHROPIC_API_KEY=your_key_here` (for Claude)
+- `OPENAI_API_KEY=your_key_here` (for OpenAI tools)
 
 ## 🐳 Using Pre-Built Images
 
@@ -420,156 +414,69 @@ nano ~/.ai-git-allowed  # Delete the line
 
 ## ❓ Troubleshooting
 
-### Installation Issues
+### Common Issues
 
-**"Docker not found. Please install Docker Desktop first."**
-```bash
-# Verify Docker is installed
-docker --version
-
-# On macOS: Start Docker Desktop from Applications
-# On Linux: sudo systemctl start docker
-
-# Ensure Docker daemon is running
-docker ps
-```
-
-**"Workspaces not configured. Run setup.sh first."**
-```bash
-# Run setup.sh again
-cd /path/to/ai-sandbox-wrapper
-./setup.sh
-
-# Or manually create the workspaces file
-echo "$HOME/projects" >> ~/.ai-workspaces
-```
-
-**"No tools selected for installation"**
-- Re-run setup.sh and select at least one tool from the menu
-
-### Runtime Issues
+**Docker not found**
+- Make sure Docker Desktop is installed and running
+- Check with: `docker --version` and `docker ps`
 
 **"command not found: ai-run"**
+- Reload your shell: `source ~/.zshrc`
+- Verify setup completed: check if `~/bin/ai-run` exists
+
+**"Workspaces not configured"**
+- Run setup again: `./setup.sh`
+- Make sure you entered workspace directories during setup
+
+**Tool doesn't start**
+- Check if you selected the tool during setup
+- Look for the Docker image: `docker images | grep ai-`
+
+**"Outside whitelisted workspace" error**
+- Add your current directory: `echo "$(pwd)" >> ~/.ai-workspaces`
+- Or navigate to a directory you whitelisted during setup
+
+**API key errors**
+- Check your keys in: `cat ~/.ai-env`
+- Make sure keys are in format: `KEY_NAME=actual_key_value`
+
+### Getting Help
+
+If you're still having issues:
+1. Check that Docker is running
+2. Re-run `./setup.sh` to reinstall
+3. Look at the configuration files in your home directory:
+   - `~/.ai-workspaces` - should contain your project directories
+   - `~/.ai-env` - should contain your API keys (if needed)
+4. View Docker images: `docker images` to see if tools built successfully
+
+## 📚 Quick Reference
+
+### Main Commands
+- `ai-run <tool>` - Run any tool in sandbox (e.g., `ai-run claude`)
+- `<tool>` - Shortcut for tools you installed (e.g., `claude`, `aider`)
+
+### Configuration Files
+- `~/.ai-env` - Store API keys here
+- `~/.ai-workspaces` - Whitelisted project directories
+- `~/.ai-cache/` - Tool cache (persistent)
+- `~/.ai-home/` - Tool configurations (persistent)
+
+### Common Tasks
 ```bash
-# Reload your shell
+# Add a new project directory to AI access
+echo '/path/to/my/new/project' >> ~/.ai-workspaces
+
+# Check what tools are installed
+ls ~/bin/
+
+# Reload shell after setup
 source ~/.zshrc
 
-# Or manually add to PATH
-export PATH="$HOME/bin:$PATH"
-
-# Verify the script exists
-ls -la ~/bin/ai-run
-```
-
-**Tool doesn't start or shows errors**
-```bash
-# Check if image exists
-docker images | grep ai-
-
-# Pull pre-built image if using registry mode
-AI_IMAGE_SOURCE=registry docker pull registry.gitlab.com/kokorolee/ai-sandbox-wrapper/ai-claude:latest
-
-# Rebuild locally (if using local mode)
-cd /path/to/ai-sandbox-wrapper
-./setup.sh  # Select the tool to rebuild
-```
-
-**Permission denied errors**
-```bash
-# Ensure bin directory is in PATH
-source ~/.zshrc
-
-# Make scripts executable
-chmod +x ~/bin/ai-run
-chmod +x ~/bin/*
-```
-
-### Security Warnings
-
-**"SECURITY WARNING: You are running outside a whitelisted workspace"**
-```bash
-# Option 1: Add current directory to workspaces
-echo "$(pwd)" >> ~/.ai-workspaces
-
-# Option 2: Navigate to a whitelisted directory
-cd ~/projects
-ai-run claude
-```
-
-**Git access prompts don't appear**
-- Git access is only available when:
-  1. Running in interactive mode (TTY attached)
-  2. SSH keys exist in `~/.ssh/`
-  3. `.gitconfig` exists in home directory
-
-**"No git remotes found with SSH URLs"**
-```bash
-# Check your git remotes
-git remote -v
-
-# Add SSH remote if needed
-git remote add origin git@github.com:username/repo.git
-```
-
-### Performance Issues
-
-**Slow container startup**
-- Use pre-built registry images instead of local builds
-- Enable Docker build cache
-- Use SSD storage for Docker data
-
-**High memory usage**
-```bash
-# Check Docker disk usage
-docker system df
-
-# Clean up unused images/containers
-docker system prune -a
-```
-
-### API Key Issues
-
-**"API key not found" errors**
-```bash
-# Verify ~/.ai-env exists and has correct format
-cat ~/.ai-env
-
-# Edit with correct keys
-nano ~/.ai-env
-
-# Reload environment (start new terminal or source ~/.zshrc)
-```
-
-**Wrong model or pricing**
-- Check tool-specific documentation for model requirements
-- Some tools require specific API key formats
-
-### Uninstallation
-
-To completely remove AI Sandbox Wrapper:
-
-```bash
-# Remove installed tools and scripts
-rm -rf ~/bin/ai-run
-rm -rf ~/bin/{claude,gemini,aider,kilo,codex,amp,opencode,qwen,droid,qoder,auggie,codebuddy,jules,shai,vscode-run,codeserver-run}
-
-# Remove configuration (optional - backup first!)
-rm -f ~/.ai-env
-rm -f ~/.ai-workspaces
-rm -f ~/.ai-git-allowed
-rm -rf ~/.ai-cache/
-rm -rf ~/.ai-home/
-rm -rf ~/.ai-images/
-
-# Remove shell additions
-# Edit ~/.zshrc and remove:
-# - export PATH="$HOME/bin:$PATH"
-# - alias claude="ai-run claude"
-# - etc.
-
-# Remove Docker images (optional)
-docker rmi $(docker images -q 'ai-*') 2>/dev/null || true
-docker rmi registry.gitlab.com/kokorolee/ai-sandbox-wrapper/* 2>/dev/null || true
+# Update to latest version
+cd ~/ai-sandbox-wrapper
+git pull
+./setup.sh  # Re-run to update tools
 ```
 
 ## 🤝 Contributing
