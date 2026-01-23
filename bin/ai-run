@@ -137,6 +137,125 @@ GIT_ALLOWED_FILE="$HOME/.ai-git-allowed"
 GIT_CACHE_DIR="$HOME/.ai-cache/git"
 touch "$GIT_ALLOWED_FILE"
 
+# Network configuration for Docker network access
+NETWORK_FILE="$HOME/.ai-networks"
+NETWORK_MOUNTS=""
+NETWORK_OPTIONS=""
+HOST_ACCESS_ARGS=""
+METAMCP_JOINED=false
+
+# Read configured networks (with deduplication)
+if [[ -f "$NETWORK_FILE" ]]; then
+  while IFS= read -r network; do
+    [ -z "$network" ] && continue
+    
+    # Skip if already added to NETWORK_OPTIONS (deduplication)
+    if [[ "$NETWORK_OPTIONS" == *"--network $network"* ]]; then
+      continue
+    fi
+    
+    # Check if network exists
+    if docker network inspect "$network" >/dev/null 2>&1; then
+      NETWORK_OPTIONS="$NETWORK_OPTIONS --network $network"
+      
+      # Check if this network requires host access
+      if [[ "$network" == *"metamcp"* ]]; then
+        # Add host.docker.internal for host service access (Linux requires --add-host)
+        # Docker Desktop on Mac/Windows has this by default
+        HOST_ACCESS_ARGS="--add-host=host.docker.internal:host-gateway"
+        METAMCP_JOINED=true
+      fi
+    else
+      echo "⚠️  Network '$network' not found (may have been removed)"
+    fi
+  done < "$NETWORK_FILE"
+fi
+
+# Check if we should prompt about detected MetaMCP network
+# Only prompt if: network exists AND not already joined AND interactive mode
+if [[ "$METAMCP_JOINED" != "true" ]] && docker network inspect "metamcp_metamcp-network" >/dev/null 2>&1; then
+  if [[ -t 0 ]]; then
+    # Interactive arrow-key menu
+    cursor=0
+    options=("Join network (container-to-container)" "Use host.docker.internal (host access)")
+    
+    tput civis
+    trap 'tput cnorm; exit' INT TERM
+    
+    while true; do
+      clear
+      echo "🔗 MetaMCP Network Configuration"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "A Docker network 'metamcp_metamcp-network' was detected."
+      echo ""
+      echo "Choose how AI tools should access MetaMCP:"
+      echo ""
+      
+      for i in "${!options[@]}"; do
+        if [ "$i" -eq "$cursor" ]; then
+          prefix="➔ "
+          tput setaf 6
+        else
+          prefix="  "
+        fi
+        
+        printf "%s %s\n" "$prefix" "${options[$i]}"
+        tput sgr0
+      done
+      
+      echo ""
+      echo "Use ARROWS to move, ENTER to select"
+      
+      IFS= read -rsn1 key
+      if [[ "$key" == $'\x1b' ]]; then
+        read -rsn1 -t 1 next1
+        read -rsn1 -t 1 next2
+        case "$next1$next2" in
+          '[A') ((cursor--)) ;;
+          '[B') ((cursor++)) ;;
+        esac
+      else
+        case "$key" in
+          k) ((cursor--)) ;;
+          j) ((cursor++)) ;;
+          "") break ;;
+          $'\n'|$'\r') break ;;
+        esac
+      fi
+      
+      if [ "$cursor" -lt 0 ]; then cursor=$((${#options[@]} - 1)); fi
+      if [ "$cursor" -ge "${#options[@]}" ]; then cursor=0; fi
+    done
+    
+    tput cnorm
+    
+    if [ "$cursor" -eq 0 ]; then
+      # Join network - but only if not already in file
+      if ! grep -q "^metamcp_metamcp-network$" "$NETWORK_FILE" 2>/dev/null; then
+        echo "metamcp_metamcp-network" >> "$NETWORK_FILE"
+      fi
+      NETWORK_OPTIONS="$NETWORK_OPTIONS --network metamcp_metamcp-network"
+      HOST_ACCESS_ARGS="--add-host=host.docker.internal:host-gateway"
+      METAMCP_JOINED=true
+      echo ""
+      echo "✅ Network joined. Both host.docker.internal and MetaMCP network enabled."
+    else
+      # Use host.docker.internal
+      HOST_ACCESS_ARGS="--add-host=host.docker.internal:host-gateway"
+      echo ""
+      echo "ℹ️  Using host.docker.internal only. MetaMCP accessible at localhost:12008 on host."
+    fi
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+  else
+    # Non-interactive: just use host.docker.internal
+    HOST_ACCESS_ARGS="--add-host=host.docker.internal:host-gateway"
+  fi
+elif [[ "$METAMCP_JOINED" != "true" ]]; then
+  # No network, but ensure host.docker.internal is available
+  HOST_ACCESS_ARGS="--add-host=host.docker.internal:host-gateway"
+fi
+
 # Check if Git access is allowed for this workspace
 if grep -q "^$CURRENT_DIR$" "$GIT_ALLOWED_FILE" 2>/dev/null; then
   # Previously allowed for this workspace
@@ -348,13 +467,48 @@ else
   fi
 fi
 
-docker run --rm -it \
+# Generate container name based on tool and folder
+# Format: {tool}-{sanitized_folder_name}
+generate_container_name() {
+  local folder_name=$(basename "$CURRENT_DIR")
+  
+  # Sanitize: keep only alphanumeric, hyphens, underscores
+  # Replace spaces with hyphens, remove special chars
+  folder_name=$(echo "$folder_name" | tr ' ' '-' | tr -cd '[:alnum:]_-' | tr '[:upper:]' '[:lower:]')
+  
+  # Limit length (max 50 chars for container name)
+  if [[ ${#folder_name} -gt 50 ]]; then
+    folder_name="${folder_name:0:50}"
+  fi
+  
+  # Remove trailing hyphens/underscores
+  folder_name=$(echo "$folder_name" | sed 's/[-_]*$//')
+  
+  # If empty after sanitization, use "workspace"
+  if [[ -z "$folder_name" ]]; then
+    folder_name="workspace"
+  fi
+  
+  echo "${TOOL}-${folder_name}"
+}
+
+# Container name (only for interactive mode to avoid conflicts)
+CONTAINER_NAME=""
+if [[ -t 0 ]]; then
+  CONTAINER_NAME="--name $(generate_container_name)"
+fi
+
+docker run $CONTAINER_NAME --rm -it \
   --platform linux/arm64 \
   $VOLUME_MOUNTS \
   $CONFIG_MOUNT \
   $GIT_MOUNTS \
+  $NETWORK_OPTIONS \
+  $HOST_ACCESS_ARGS \
   -v "$CACHE_DIR":/home/agent/.cache \
   -v "$HOME_DIR":/home/agent \
   -w "$CURRENT_DIR" \
   --env-file "$ENV_FILE" \
+  -e TERM="$TERM" \
+  -e COLORTERM="$COLORTERM" \
   "$IMAGE" "$@"
