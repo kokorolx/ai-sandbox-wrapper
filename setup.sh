@@ -292,8 +292,8 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 # Tool definitions
-TOOL_OPTIONS="amp,opencode,droid,claude,gemini,kilo,qwen,codex,qoder,auggie,codebuddy,jules,shai,vscode,codeserver"
-TOOL_DESCS="AI coding assistant from @sourcegraph/amp,Open-source coding tool from opencode-ai,Factory CLI from factory.ai,Claude Code CLI from Anthropic,Google Gemini CLI (free tier),AI pair programmer (Git-native),Kilo Code (500+ models),Alibaba Qwen CLI (1M context),OpenAI Codex terminal agent,Qoder AI CLI assistant,Augment Auggie CLI,Tencent CodeBuddy CLI,Google Jules CLI,OVHcloud SHAI agent,VSCode Desktop in Docker (X11),VSCode in browser (fast)"
+TOOL_OPTIONS="amp,opencode,droid,claude,gemini,kilo,qwen,codex,qoder,auggie,codebuddy,jules,shai,vscode,codeserver,spec-kit,ux-ui-promax"
+TOOL_DESCS="AI coding assistant from @sourcegraph/amp,Open-source coding tool from opencode-ai,Factory CLI from factory.ai,Claude Code CLI from Anthropic,Google Gemini CLI (free tier),AI pair programmer (Git-native),Kilo Code (500+ models),Alibaba Qwen CLI (1M context),OpenAI Codex terminal agent,Qoder AI CLI assistant,Augment Auggie CLI,Tencent CodeBuddy CLI,Google Jules CLI,OVHcloud SHAI agent,VSCode Desktop in Docker (X11),VSCode in browser (fast),Spec-driven development toolkit,UI/UX design intelligence tool"
 
 # Interactive multi-select
 multi_select "Select AI Tools to Install" "$TOOL_OPTIONS" "$TOOL_DESCS"
@@ -387,6 +387,12 @@ for tool in "${TOOLS[@]}"; do
     codeserver)
       bash "$SCRIPT_DIR/lib/install-codeserver.sh"
       ;;
+    spec-kit)
+      bash "$SCRIPT_DIR/lib/install-spec-kit.sh"
+      ;;
+    ux-ui-promax)
+      bash "$SCRIPT_DIR/lib/install-ux-ui-promax.sh"
+      ;;
   esac
 done
 
@@ -413,6 +419,16 @@ for tool in "${TOOLS[@]}"; do
     if ! grep -q "alias codeserver=" "$SHELL_RC" 2>/dev/null; then
       echo "alias codeserver='codeserver-run'" >> "$SHELL_RC"
     fi
+  elif [[ "$tool" == "spec-kit" ]]; then
+    # spec-kit is installed globally via npm
+    if ! grep -q "alias speckit=" "$SHELL_RC" 2>/dev/null; then
+      echo "alias speckit='speckit'" >> "$SHELL_RC"
+    fi
+  elif [[ "$tool" == "ux-ui-promax" ]]; then
+    # UI UX Pro Max is installed globally via npm
+    if ! grep -q "alias uipro=" "$SHELL_RC" 2>/dev/null; then
+      echo "alias uipro='uipro'" >> "$SHELL_RC"
+    fi
   else
     # Other tools use ai-run wrapper
     if ! grep -q "alias $tool=" "$SHELL_RC" 2>/dev/null; then
@@ -430,6 +446,10 @@ for tool in "${TOOLS[@]}"; do
     echo "  vscode-run (or: vscode) - Desktop VSCode via X11"
   elif [[ "$tool" == "codeserver" ]]; then
     echo "  codeserver-run (or: codeserver) - Browser VSCode at localhost:8080"
+  elif [[ "$tool" == "spec-kit" ]]; then
+    echo "  speckit - Spec-driven development toolkit"
+  elif [[ "$tool" == "ux-ui-promax" ]]; then
+    echo "  uipro - UI/UX design intelligence tool"
   else
     echo "  ai-run $tool (or: $tool)"
   fi

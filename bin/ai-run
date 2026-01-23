@@ -468,7 +468,7 @@ else
 fi
 
 # Generate container name based on tool and folder
-# Format: {tool}-{sanitized_folder_name}
+# Format: {tool}-{sanitized_folder_name}-{random_suffix}
 generate_container_name() {
   local folder_name=$(basename "$CURRENT_DIR")
   
@@ -476,9 +476,9 @@ generate_container_name() {
   # Replace spaces with hyphens, remove special chars
   folder_name=$(echo "$folder_name" | tr ' ' '-' | tr -cd '[:alnum:]_-' | tr '[:upper:]' '[:lower:]')
   
-  # Limit length (max 50 chars for container name)
-  if [[ ${#folder_name} -gt 50 ]]; then
-    folder_name="${folder_name:0:50}"
+  # Limit length (max 50 chars for container name, leaving room for random suffix)
+  if [[ ${#folder_name} -gt 40 ]]; then
+    folder_name="${folder_name:0:40}"
   fi
   
   # Remove trailing hyphens/underscores
@@ -489,7 +489,10 @@ generate_container_name() {
     folder_name="workspace"
   fi
   
-  echo "${TOOL}-${folder_name}"
+  # Generate random 6-character suffix (hex)
+  local random_suffix=$(openssl rand -hex 3)
+  
+  echo "${TOOL}-${folder_name}-${random_suffix}"
 }
 
 # Container name (only for interactive mode to avoid conflicts)
