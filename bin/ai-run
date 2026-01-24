@@ -495,13 +495,35 @@ generate_container_name() {
   echo "${TOOL}-${folder_name}-${random_suffix}"
 }
 
-# Container name (only for interactive mode to avoid conflicts)
+# Container name and TTY allocation
 CONTAINER_NAME=""
-if [[ -t 0 ]]; then
+TTY_FLAGS="-it"  # Default to interactive mode
+
+# Check if we have a proper TTY and are in interactive mode
+if [[ ! -t 0 ]] || [[ ! -t 1 ]]; then
+  # No TTY available or non-interactive mode
+  TTY_FLAGS=""
+  echo "⚠️  Non-interactive mode detected. Terminal interface may be limited."
+elif [[ -n "$CI" ]] || [[ -n "$GITHUB_ACTIONS" ]]; then
+  # CI environment - disable interactive features
+  TTY_FLAGS=""
+  echo "ℹ️  CI environment detected. Running in non-interactive mode."
+fi
+
+# Only set container name for interactive mode to avoid conflicts
+if [[ -n "$TTY_FLAGS" ]]; then
   CONTAINER_NAME="--name $(generate_container_name)"
 fi
 
-docker run $CONTAINER_NAME --rm -it \
+# Debug output (only in verbose mode)
+if [[ "${AI_RUN_DEBUG:-}" == "1" ]]; then
+  echo "🔧 Debug: TTY_FLAGS='$TTY_FLAGS'"
+  echo "🔧 Debug: CONTAINER_NAME='$CONTAINER_NAME'"
+  echo "🔧 Debug: IMAGE='$IMAGE'"
+  echo "🔧 Debug: Args='$@'"
+fi
+
+docker run $CONTAINER_NAME --rm $TTY_FLAGS \
   --platform linux/arm64 \
   $VOLUME_MOUNTS \
   $CONFIG_MOUNT \
