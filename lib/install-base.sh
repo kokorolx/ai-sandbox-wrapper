@@ -8,7 +8,7 @@ ADDITIONAL_TOOLS_INSTALL=""
 
 if [[ "${INSTALL_SPEC_KIT:-0}" -eq 1 ]]; then
   echo "📦 spec-kit will be installed in base image"
-  ADDITIONAL_TOOLS_INSTALL+='RUN npm install -g @letuscode/spec-kit
+  ADDITIONAL_TOOLS_INSTALL+='RUN pipx install specify-cli --pip-args="git+https://github.com/github/spec-kit.git"
 '
 fi
 
