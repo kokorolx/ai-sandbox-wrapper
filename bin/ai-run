@@ -4,6 +4,23 @@ set -e
 TOOL="$1"
 shift
 
+# Parse flags
+SHELL_MODE=false
+TOOL_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --shell|-s)
+      SHELL_MODE=true
+      shift
+      ;;
+    *)
+      TOOL_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
 WORKSPACES_FILE="$HOME/.ai-workspaces"
 CURRENT_DIR="$(pwd)"
 ENV_FILE="$HOME/.ai-env"
@@ -520,7 +537,20 @@ if [[ "${AI_RUN_DEBUG:-}" == "1" ]]; then
   echo "🔧 Debug: TTY_FLAGS='$TTY_FLAGS'"
   echo "🔧 Debug: CONTAINER_NAME='$CONTAINER_NAME'"
   echo "🔧 Debug: IMAGE='$IMAGE'"
-  echo "🔧 Debug: Args='$@'"
+  echo "🔧 Debug: SHELL_MODE='$SHELL_MODE'"
+  echo "🔧 Debug: TOOL_ARGS='${TOOL_ARGS[@]}'"
+fi
+
+# Prepare command based on mode
+if [[ "$SHELL_MODE" == "true" ]]; then
+  # Shell mode: start bash with a welcome message
+  DOCKER_COMMAND=(
+    "bash" "-c"
+    "echo ''; echo '🚀 AI Tool Container - Interactive Shell'; echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'; echo ''; echo \"Tool available: ${TOOL}\"; echo 'Run the tool: ${TOOL}'; echo 'Exit container: exit or Ctrl+D'; echo ''; echo \"Additional tools:\"; echo '  - specify (spec-kit): Spec-driven development'; echo '  - uipro (ux-ui-promax): UI/UX design intelligence'; echo '  - openspec: OpenSpec workflow'; echo ''; echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'; echo ''; exec bash"
+  )
+else
+  # Direct mode: run tool with arguments
+  DOCKER_COMMAND=("${TOOL_ARGS[@]}")
 fi
 
 docker run $CONTAINER_NAME --rm $TTY_FLAGS \
@@ -536,4 +566,4 @@ docker run $CONTAINER_NAME --rm $TTY_FLAGS \
   --env-file "$ENV_FILE" \
   -e TERM="$TERM" \
   -e COLORTERM="$COLORTERM" \
-  "$IMAGE" "$@"
+  "$IMAGE" "${DOCKER_COMMAND[@]}"
