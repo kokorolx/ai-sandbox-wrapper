@@ -484,7 +484,7 @@ if [[ ${#ADDITIONAL_TOOLS[@]} -gt 0 ]]; then
   for addon in "${ADDITIONAL_TOOLS[@]}"; do
     case $addon in
       spec-kit)
-        echo "  speckit - Spec-driven development toolkit"
+        echo "  specify - Spec-driven development toolkit"
         ;;
       ux-ui-promax)
         echo "  uipro - UI/UX design intelligence tool"
