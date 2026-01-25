@@ -542,19 +542,22 @@ if [[ "${AI_RUN_DEBUG:-}" == "1" ]]; then
 fi
 
 # Prepare command based on mode
+ENTRYPOINT_OVERRIDE=""
 if [[ "$SHELL_MODE" == "true" ]]; then
-  # Shell mode: start bash with a welcome message
+  # Shell mode: override entrypoint to bash and show welcome message
+  ENTRYPOINT_OVERRIDE="--entrypoint bash"
   DOCKER_COMMAND=(
-    "bash" "-c"
+    "-c"
     "echo ''; echo '🚀 AI Tool Container - Interactive Shell'; echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'; echo ''; echo \"Tool available: ${TOOL}\"; echo 'Run the tool: ${TOOL}'; echo 'Exit container: exit or Ctrl+D'; echo ''; echo \"Additional tools:\"; echo '  - specify (spec-kit): Spec-driven development'; echo '  - uipro (ux-ui-promax): UI/UX design intelligence'; echo '  - openspec: OpenSpec workflow'; echo ''; echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'; echo ''; exec bash"
   )
 else
-  # Direct mode: run tool with arguments
+  # Direct mode: use image's default entrypoint with arguments
   DOCKER_COMMAND=("${TOOL_ARGS[@]}")
 fi
 
 docker run $CONTAINER_NAME --rm $TTY_FLAGS \
   --platform linux/arm64 \
+  $ENTRYPOINT_OVERRIDE \
   $VOLUME_MOUNTS \
   $CONFIG_MOUNT \
   $GIT_MOUNTS \
