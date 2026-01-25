@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install additional tools (if selected)
 RUN pipx install specify-cli --pip-args="git+https://github.com/github/spec-kit.git"
-RUN npm install -g uipro-cli
+RUN bun install -g uipro-cli
 RUN mkdir -p /usr/local/lib/openspec && \
     cd /usr/local/lib/openspec && \
     bun init -y && \

@@ -14,7 +14,7 @@ fi
 
 if [[ "${INSTALL_UX_UI_PROMAX:-0}" -eq 1 ]]; then
   echo "📦 ux-ui-promax will be installed in base image"
-  ADDITIONAL_TOOLS_INSTALL+='RUN npm install -g uipro-cli
+  ADDITIONAL_TOOLS_INSTALL+='RUN bun install -g uipro-cli
 '
 fi
 
