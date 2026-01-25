@@ -70,6 +70,11 @@ RUN pipx install specify-cli --pip-args="git+https://github.com/github/spec-kit.
 **Commit:** `5c6cfc2` - chore: make install-base.sh executable
 - Fixed file permissions for `lib/install-base.sh`
 
+**Commit:** `811e371` - fix: use bun instead of npm for uipro-cli installation
+- Changed from `npm install -g` to `bun install -g` for uipro-cli
+- Base image uses Bun runtime, not npm
+- Ensures consistent package manager usage
+
 ## Final State
 
 ### Architecture
@@ -79,7 +84,7 @@ All three additional tools are installed **in the base Docker image** (`ai-base:
 | Tool | Method | Package/Source | Command |
 |------|--------|----------------|---------|
 | **spec-kit** | pipx (Python) | `git+https://github.com/github/spec-kit.git` | `specify` |
-| **ux-ui-promax** | npm | `uipro-cli` | `uipro` |
+| **ux-ui-promax** | bun | `uipro-cli` | `uipro` |
 | **openspec** | bun (local) | `@fission-ai/openspec` | `openspec` |
 
 ### Files Modified
