@@ -555,8 +555,34 @@ else
   DOCKER_COMMAND=("${TOOL_ARGS[@]}")
 fi
 
+# Detect platform architecture (avoid slow emulation)
+PLATFORM="${AI_RUN_PLATFORM:-}"
+if [[ -z "$PLATFORM" ]]; then
+  case "$(uname -m)" in
+    x86_64)
+      PLATFORM="linux/amd64"
+      ;;
+    aarch64|arm64)
+      PLATFORM="linux/arm64"
+      ;;
+    *)
+      PLATFORM="linux/$(uname -m)"
+      ;;
+  esac
+fi
+
+# Terminal size for TUI apps (important for opencode, aider, etc.)
+TERMINAL_SIZE=""
+if [[ -n "$TTY_FLAGS" ]]; then
+  # Get current terminal size
+  TERM_COLS=$(tput cols 2>/dev/null || echo "120")
+  TERM_LINES=$(tput lines 2>/dev/null || echo "40")
+  TERMINAL_SIZE="-e COLUMNS=$TERM_COLS -e LINES=$TERM_LINES"
+fi
+
 docker run $CONTAINER_NAME --rm $TTY_FLAGS \
-  --platform linux/arm64 \
+  --init \
+  --platform "$PLATFORM" \
   $ENTRYPOINT_OVERRIDE \
   $VOLUME_MOUNTS \
   $CONFIG_MOUNT \
@@ -569,4 +595,5 @@ docker run $CONTAINER_NAME --rm $TTY_FLAGS \
   --env-file "$ENV_FILE" \
   -e TERM="$TERM" \
   -e COLORTERM="$COLORTERM" \
+  $TERMINAL_SIZE \
   "$IMAGE" "${DOCKER_COMMAND[@]}"

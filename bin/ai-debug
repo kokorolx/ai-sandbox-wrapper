@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# AI Sandbox Wrapper - Diagnostic Tool
+
+echo "🔍 AI Sandbox Wrapper - Diagnostic Information"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+# System info
+echo "📋 System Information:"
+echo "  OS: $(uname -s)"
+echo "  Architecture: $(uname -m)"
+echo "  Kernel: $(uname -r)"
+echo ""
+
+# Docker info
+echo "🐳 Docker Information:"
+if command -v docker &> /dev/null; then
+  echo "  Docker: $(docker --version)"
+  echo "  Docker running: $(docker ps &>/dev/null && echo "✅ Yes" || echo "❌ No")"
+  
+  # Check platform support
+  if docker buildx version &>/dev/null; then
+    echo "  Buildx available: ✅ Yes"
+  else
+    echo "  Buildx available: ❌ No"
+  fi
+  
+  # Show running AI containers
+  AI_CONTAINERS=$(docker ps --filter "name=opencode-" --filter "name=claude-" --filter "name=gemini-" --filter "name=aider-" --format "{{.Names}}" 2>/dev/null | wc -l)
+  echo "  Running AI containers: $AI_CONTAINERS"
+  if [ "$AI_CONTAINERS" -gt 0 ]; then
+    docker ps --filter "name=opencode-" --filter "name=claude-" --filter "name=gemini-" --filter "name=aider-" --format "    - {{.Names}} ({{.Status}})"
+  fi
+else
+  echo "  Docker: ❌ Not installed or not in PATH"
+fi
+echo ""
+
+# Terminal info
+echo "🖥️  Terminal Information:"
+echo "  TERM: ${TERM:-not set}"
+echo "  COLORTERM: ${COLORTERM:-not set}"
+echo "  Terminal size: $(tput cols 2>/dev/null || echo "unknown") x $(tput lines 2>/dev/null || echo "unknown")"
+echo "  TTY: $(tty 2>/dev/null || echo "not a tty")"
+echo "  Interactive: $([[ -t 0 ]] && echo "✅ Yes" || echo "❌ No")"
+echo ""
+
+# Configuration files
+echo "📁 Configuration Files:"
+echo "  Workspaces file: $([ -f "$HOME/.ai-workspaces" ] && echo "✅ Exists" || echo "❌ Missing")"
+if [ -f "$HOME/.ai-workspaces" ]; then
+  echo "    $(wc -l < "$HOME/.ai-workspaces") workspace(s) configured"
+fi
+echo "  Env file: $([ -f "$HOME/.ai-env" ] && echo "✅ Exists" || echo "❌ Missing")"
+if [ -f "$HOME/.ai-env" ]; then
+  echo "    $(grep -c "=" "$HOME/.ai-env" 2>/dev/null || echo 0) variable(s) configured"
+fi
+echo "  Git allowed: $([ -f "$HOME/.ai-git-allowed" ] && echo "✅ Exists" || echo "❌ Missing")"
+if [ -f "$HOME/.ai-git-allowed" ]; then
+  echo "    $(wc -l < "$HOME/.ai-git-allowed") workspace(s) with Git access"
+fi
+echo "  Networks file: $([ -f "$HOME/.ai-networks" ] && echo "✅ Exists" || echo "❌ Missing")"
+if [ -f "$HOME/.ai-networks" ]; then
+  echo "    $(wc -l < "$HOME/.ai-networks") network(s) configured"
+fi
+echo ""
+
+# AI Images
+echo "🎨 AI Tool Images:"
+AI_IMAGES=$(docker images --filter "reference=ai-*" --format "{{.Repository}}" 2>/dev/null | wc -l)
+echo "  Found $AI_IMAGES AI tool image(s)"
+if [ "$AI_IMAGES" -gt 0 ]; then
+  docker images --filter "reference=ai-*" --format "    - {{.Repository}}:{{.Tag}} ({{.Size}})"
+fi
+echo ""
+
+# Performance check
+echo "⚡ Performance Indicators:"
+# Check if Rosetta is being used (macOS ARM running x86 images)
+if [[ "$(uname -s)" == "Darwin" ]] && [[ "$(uname -m)" == "arm64" ]]; then
+  echo "  Platform: Apple Silicon (ARM64)"
+  X86_IMAGES=$(docker images --filter "reference=ai-*" --format "{{.Repository}}" --filter "label=architecture=amd64" 2>/dev/null | wc -l)
+  if [ "$X86_IMAGES" -gt 0 ]; then
+    echo "  ⚠️  Warning: x86_64 images detected (may run slow via Rosetta)"
+    echo "      Consider rebuilding images for ARM64"
+  fi
+fi
+
+# Check volume mount performance
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  echo "  Volume mount type: $(docker info --format '{{.Driver}}' 2>/dev/null || echo "unknown")"
+  echo "  💡 Tip: Use 'delegated' mount mode for better performance (already configured)"
+fi
+echo ""
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "💡 Common Issues & Solutions:"
+echo ""
+echo "1. Slow startup or missing UI:"
+echo "   - Check architecture: Images should match your CPU (ARM64 or x86_64)"
+echo "   - Rebuild images: ./setup.sh (select tools to rebuild)"
+echo "   - Use shell mode: ai-run opencode --shell (better for TUI apps)"
+echo ""
+echo "2. 'Container name already in use':"
+echo "   - List containers: docker ps -a"
+echo "   - Remove old containers: docker rm -f <container-name>"
+echo ""
+echo "3. Terminal rendering issues:"
+echo "   - Set TERM: export TERM=xterm-256color"
+echo "   - Resize terminal and retry"
+echo ""
+echo "4. Tool not responding:"
+echo "   - Enable debug: AI_RUN_DEBUG=1 ai-run <tool>"
+echo "   - Check logs: docker logs <container-name>"
+echo ""
