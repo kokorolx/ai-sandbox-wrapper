@@ -4,15 +4,28 @@ set -e
 # Build base Docker image with Bun runtime (2x faster than Node.js)
 mkdir -p "dockerfiles/base"
 
-# Check if OpenSpec should be installed (passed from setup.sh)
-OPENSPEC_INSTALL_CMD=""
+ADDITIONAL_TOOLS_INSTALL=""
+
+if [[ "${INSTALL_SPEC_KIT:-0}" -eq 1 ]]; then
+  echo "📦 spec-kit will be installed in base image"
+  ADDITIONAL_TOOLS_INSTALL+='RUN npm install -g @letuscode/spec-kit
+'
+fi
+
+if [[ "${INSTALL_UX_UI_PROMAX:-0}" -eq 1 ]]; then
+  echo "📦 ux-ui-promax will be installed in base image"
+  ADDITIONAL_TOOLS_INSTALL+='RUN npm install -g uipro-cli
+'
+fi
+
 if [[ "${INSTALL_OPENSPEC:-0}" -eq 1 ]]; then
-  echo "📦 OpenSpec will be installed in base image (available in all AI tools)"
-  OPENSPEC_INSTALL_CMD='RUN mkdir -p /usr/local/lib/openspec && \
+  echo "📦 OpenSpec will be installed in base image"
+  ADDITIONAL_TOOLS_INSTALL+='RUN mkdir -p /usr/local/lib/openspec && \
     cd /usr/local/lib/openspec && \
     bun init -y && \
     bun add @fission-ai/openspec && \
-    ln -sf /usr/local/lib/openspec/node_modules/.bin/openspec /usr/local/bin/openspec'
+    ln -sf /usr/local/lib/openspec/node_modules/.bin/openspec /usr/local/bin/openspec
+'
 fi
 
 cat > "dockerfiles/base/Dockerfile" <<EOF
@@ -37,8 +50,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \\
     && pipx ensurepath
 
 # Install additional tools (if selected)
-${OPENSPEC_INSTALL_CMD}
-
+${ADDITIONAL_TOOLS_INSTALL}
 # Create workspace
 WORKDIR /workspace
 

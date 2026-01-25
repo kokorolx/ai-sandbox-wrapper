@@ -315,18 +315,18 @@ done
 
 echo ""
 if [[ ${#CONTAINERIZED_TOOLS[@]} -gt 0 ]]; then
-  ADDITIONAL_TOOL_OPTIONS="spec-kit,ux-ui-promax,openspec,openspec-container"
-  ADDITIONAL_TOOL_DESCS="Spec-driven development toolkit,UI/UX design intelligence tool,OpenSpec - spec-driven development (host),OpenSpec inside containers (all containerized AI tools)"
-else
   ADDITIONAL_TOOL_OPTIONS="spec-kit,ux-ui-promax,openspec"
   ADDITIONAL_TOOL_DESCS="Spec-driven development toolkit,UI/UX design intelligence tool,OpenSpec - spec-driven development"
-fi
 
-multi_select "Select Additional Tools" "$ADDITIONAL_TOOL_OPTIONS" "$ADDITIONAL_TOOL_DESCS"
-ADDITIONAL_TOOLS=("${SELECTED_ITEMS[@]}")
+  multi_select "Select Additional Tools (installed in containers)" "$ADDITIONAL_TOOL_OPTIONS" "$ADDITIONAL_TOOL_DESCS"
+  ADDITIONAL_TOOLS=("${SELECTED_ITEMS[@]}")
 
-if [[ ${#ADDITIONAL_TOOLS[@]} -gt 0 ]]; then
-  echo "Additional tools selected: ${ADDITIONAL_TOOLS[*]}"
+  if [[ ${#ADDITIONAL_TOOLS[@]} -gt 0 ]]; then
+    echo "Additional tools selected: ${ADDITIONAL_TOOLS[*]}"
+  fi
+else
+  ADDITIONAL_TOOLS=()
+  echo "ℹ️  No containerized AI tools selected. Skipping additional tools."
 fi
 
 mkdir -p "$WORKSPACE"
@@ -356,14 +356,25 @@ for tool in "${TOOLS[@]}"; do
 done
 
 if [[ $NEEDS_BASE_IMAGE -eq 1 ]]; then
+  INSTALL_SPEC_KIT=0
+  INSTALL_UX_UI_PROMAX=0
   INSTALL_OPENSPEC=0
+  
   for addon in "${ADDITIONAL_TOOLS[@]}"; do
-    if [[ "$addon" == "openspec-container" ]]; then
-      INSTALL_OPENSPEC=1
-    fi
+    case "$addon" in
+      spec-kit)
+        INSTALL_SPEC_KIT=1
+        ;;
+      ux-ui-promax)
+        INSTALL_UX_UI_PROMAX=1
+        ;;
+      openspec)
+        INSTALL_OPENSPEC=1
+        ;;
+    esac
   done
   
-  export INSTALL_OPENSPEC
+  export INSTALL_SPEC_KIT INSTALL_UX_UI_PROMAX INSTALL_OPENSPEC
   bash "$SCRIPT_DIR/lib/install-base.sh"
 fi
 
@@ -421,22 +432,7 @@ for tool in "${TOOLS[@]}"; do
   esac
 done
 
-# Install additional tools
-for tool in "${ADDITIONAL_TOOLS[@]}"; do
-  case $tool in
-    spec-kit)
-      bash "$SCRIPT_DIR/lib/install-spec-kit.sh"
-      ;;
-    ux-ui-promax)
-      bash "$SCRIPT_DIR/lib/install-ux-ui-promax.sh"
-      ;;
-    openspec)
-      bash "$SCRIPT_DIR/lib/install-openspec.sh"
-      ;;
-    openspec-container)
-      ;;
-  esac
-done
+# Additional tools are installed in base image (no host installation)
 
 # Generate ai-run wrapper
 bash "$SCRIPT_DIR/lib/generate-ai-run.sh"
@@ -466,26 +462,7 @@ for tool in "${TOOLS[@]}"; do
   fi
 done
 
-# Add aliases for additional tools
-for tool in "${ADDITIONAL_TOOLS[@]}"; do
-  case $tool in
-    spec-kit)
-      if ! grep -q "alias speckit=" "$SHELL_RC" 2>/dev/null; then
-        echo "alias speckit='speckit'" >> "$SHELL_RC"
-      fi
-      ;;
-    ux-ui-promax)
-      if ! grep -q "alias uipro=" "$SHELL_RC" 2>/dev/null; then
-        echo "alias uipro='uipro'" >> "$SHELL_RC"
-      fi
-      ;;
-    openspec)
-      if ! grep -q "alias openspec=" "$SHELL_RC" 2>/dev/null; then
-        echo "alias openspec='openspec'" >> "$SHELL_RC"
-      fi
-      ;;
-  esac
-done
+# Additional tools don't need host aliases (only in containers)
 
 echo ""
 echo "✅ Setup complete!"
@@ -503,7 +480,7 @@ done
 
 if [[ ${#ADDITIONAL_TOOLS[@]} -gt 0 ]]; then
   echo ""
-  echo "🔧 Additional tools:"
+  echo "🔧 Additional tools (available inside all containerized AI tools):"
   for addon in "${ADDITIONAL_TOOLS[@]}"; do
     case $addon in
       spec-kit)
@@ -514,9 +491,6 @@ if [[ ${#ADDITIONAL_TOOLS[@]} -gt 0 ]]; then
         ;;
       openspec)
         echo "  openspec - OpenSpec CLI for spec-driven development"
-        ;;
-      openspec-container)
-        echo "  openspec (in containers) - Available inside all containerized AI tools"
         ;;
     esac
   done
