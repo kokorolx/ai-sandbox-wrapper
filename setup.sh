@@ -306,6 +306,18 @@ fi
 
 echo "Installing tools: ${TOOLS[*]}"
 
+# Ask for additional tools (installed in base image, available in all containers)
+echo ""
+ADDITIONAL_TOOL_OPTIONS="openspec"
+ADDITIONAL_TOOL_DESCS="OpenSpec CLI - Spec-driven development for AI tools"
+
+multi_select "Select Additional Tools (available in all AI tool containers)" "$ADDITIONAL_TOOL_OPTIONS" "$ADDITIONAL_TOOL_DESCS"
+ADDITIONAL_TOOLS=("${SELECTED_ITEMS[@]}")
+
+if [[ ${#ADDITIONAL_TOOLS[@]} -gt 0 ]]; then
+  echo "Additional tools selected: ${ADDITIONAL_TOOLS[*]}"
+fi
+
 mkdir -p "$WORKSPACE"
 mkdir -p "$HOME/bin"
 
@@ -333,6 +345,15 @@ for tool in "${TOOLS[@]}"; do
 done
 
 if [[ $NEEDS_BASE_IMAGE -eq 1 ]]; then
+  # Pass additional tools to base image installer
+  INSTALL_OPENSPEC=0
+  for addon in "${ADDITIONAL_TOOLS[@]}"; do
+    if [[ "$addon" == "openspec" ]]; then
+      INSTALL_OPENSPEC=1
+    fi
+  done
+  
+  export INSTALL_OPENSPEC
   bash "$SCRIPT_DIR/lib/install-base.sh"
 fi
 
@@ -454,6 +475,18 @@ for tool in "${TOOLS[@]}"; do
     echo "  ai-run $tool (or: $tool)"
   fi
 done
+
+if [[ ${#ADDITIONAL_TOOLS[@]} -gt 0 ]]; then
+  echo ""
+  echo "🔧 Additional tools (available inside AI tool containers):"
+  for addon in "${ADDITIONAL_TOOLS[@]}"; do
+    case $addon in
+      openspec)
+        echo "  openspec - OpenSpec CLI for spec-driven development"
+        ;;
+    esac
+  done
+fi
 echo ""
 echo "➡ Restart terminal or run: source ~/.zshrc"
 echo "➡ Add API keys to: $ENV_FILE"

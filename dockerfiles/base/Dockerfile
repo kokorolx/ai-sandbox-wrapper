@@ -18,6 +18,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && pipx ensurepath
 
+# Install additional tools (if selected)
+RUN mkdir -p /usr/local/lib/openspec && \
+    cd /usr/local/lib/openspec && \
+    bun init -y && \
+    bun add @fission-ai/openspec && \
+    ln -sf /usr/local/lib/openspec/node_modules/.bin/openspec /usr/local/bin/openspec
+
 # Create workspace
 WORKDIR /workspace
 

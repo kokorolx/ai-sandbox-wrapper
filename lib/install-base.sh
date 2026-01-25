@@ -3,32 +3,47 @@ set -e
 
 # Build base Docker image with Bun runtime (2x faster than Node.js)
 mkdir -p "dockerfiles/base"
-cat <<'EOF' > "dockerfiles/base/Dockerfile"
+
+# Check if OpenSpec should be installed (passed from setup.sh)
+OPENSPEC_INSTALL_CMD=""
+if [[ "${INSTALL_OPENSPEC:-0}" -eq 1 ]]; then
+  echo "📦 OpenSpec will be installed in base image (available in all AI tools)"
+  OPENSPEC_INSTALL_CMD='RUN mkdir -p /usr/local/lib/openspec && \
+    cd /usr/local/lib/openspec && \
+    bun init -y && \
+    bun add @fission-ai/openspec && \
+    ln -sf /usr/local/lib/openspec/node_modules/.bin/openspec /usr/local/bin/openspec'
+fi
+
+cat > "dockerfiles/base/Dockerfile" <<EOF
 FROM oven/bun:latest
 
 # Install common dependencies (Bun + Python for npm and pip tools)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    curl \
-    ssh \
-    ca-certificates \
-    python3 \
-    python3-pip \
-    python3-venv \
-    python3-dev \
-    python3-setuptools \
-    build-essential \
-    libopenblas-dev \
-    pipx \
-    && curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh \
-    && rm -rf /var/lib/apt/lists/* \
+RUN apt-get update && apt-get install -y --no-install-recommends \\
+    git \\
+    curl \\
+    ssh \\
+    ca-certificates \\
+    python3 \\
+    python3-pip \\
+    python3-venv \\
+    python3-dev \\
+    python3-setuptools \\
+    build-essential \\
+    libopenblas-dev \\
+    pipx \\
+    && curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh \\
+    && rm -rf /var/lib/apt/lists/* \\
     && pipx ensurepath
+
+# Install additional tools (if selected)
+${OPENSPEC_INSTALL_CMD}
 
 # Create workspace
 WORKDIR /workspace
 
 # Non-root user for security
-RUN useradd -m -u 1001 -d /home/agent agent && \
+RUN useradd -m -u 1001 -d /home/agent agent && \\
     chown -R agent:agent /workspace
 USER agent
 ENV HOME=/home/agent
