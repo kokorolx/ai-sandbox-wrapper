@@ -454,7 +454,26 @@ If you're still having issues:
 
 ### Main Commands
 - `ai-run <tool>` - Run any tool in sandbox (e.g., `ai-run claude`)
+- `ai-run <tool> --shell` - Start interactive shell mode (see [Shell Mode Guide](SHELL-MODE-USAGE.md))
 - `<tool>` - Shortcut for tools you installed (e.g., `claude`, `aider`)
+
+### Execution Modes
+
+**Direct Mode (Default):**
+```bash
+ai-run opencode
+# Tool runs directly, exits on Ctrl+C
+```
+
+**Shell Mode (Interactive):**
+```bash
+ai-run opencode --shell  # or -s
+# Starts bash shell, run tool manually
+# Ctrl+C stops tool only, not container
+# Perfect for development and debugging
+```
+
+See [SHELL-MODE-USAGE.md](SHELL-MODE-USAGE.md) for detailed examples and use cases.
 
 ### Configuration Files
 - `~/.ai-env` - Store API keys here
