@@ -292,8 +292,8 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 # Tool definitions
-TOOL_OPTIONS="amp,opencode,droid,claude,gemini,kilo,qwen,codex,qoder,auggie,codebuddy,jules,shai,vscode,codeserver,spec-kit,ux-ui-promax"
-TOOL_DESCS="AI coding assistant from @sourcegraph/amp,Open-source coding tool from opencode-ai,Factory CLI from factory.ai,Claude Code CLI from Anthropic,Google Gemini CLI (free tier),AI pair programmer (Git-native),Kilo Code (500+ models),Alibaba Qwen CLI (1M context),OpenAI Codex terminal agent,Qoder AI CLI assistant,Augment Auggie CLI,Tencent CodeBuddy CLI,Google Jules CLI,OVHcloud SHAI agent,VSCode Desktop in Docker (X11),VSCode in browser (fast),Spec-driven development toolkit,UI/UX design intelligence tool"
+TOOL_OPTIONS="amp,opencode,droid,claude,gemini,kilo,qwen,codex,qoder,auggie,codebuddy,jules,shai,vscode,codeserver,spec-kit,ux-ui-promax,openspec"
+TOOL_DESCS="AI coding assistant from @sourcegraph/amp,Open-source coding tool from opencode-ai,Factory CLI from factory.ai,Claude Code CLI from Anthropic,Google Gemini CLI (free tier),AI pair programmer (Git-native),Kilo Code (500+ models),Alibaba Qwen CLI (1M context),OpenAI Codex terminal agent,Qoder AI CLI assistant,Augment Auggie CLI,Tencent CodeBuddy CLI,Google Jules CLI,OVHcloud SHAI agent,VSCode Desktop in Docker (X11),VSCode in browser (fast),Spec-driven development toolkit,UI/UX design intelligence tool,OpenSpec - spec-driven development"
 
 # Interactive multi-select
 multi_select "Select AI Tools to Install" "$TOOL_OPTIONS" "$TOOL_DESCS"
@@ -306,16 +306,26 @@ fi
 
 echo "Installing tools: ${TOOLS[*]}"
 
-# Ask for additional tools (installed in base image, available in all containers)
-echo ""
-ADDITIONAL_TOOL_OPTIONS="openspec"
-ADDITIONAL_TOOL_DESCS="OpenSpec CLI - Spec-driven development for AI tools"
+CONTAINERIZED_TOOLS=()
+for tool in "${TOOLS[@]}"; do
+  if [[ "$tool" =~ ^(amp|opencode|claude|aider|droid|gemini|kilo|qwen|codex|qoder|auggie|codebuddy|jules|shai)$ ]]; then
+    CONTAINERIZED_TOOLS+=("$tool")
+  fi
+done
 
-multi_select "Select Additional Tools (available in all AI tool containers)" "$ADDITIONAL_TOOL_OPTIONS" "$ADDITIONAL_TOOL_DESCS"
-ADDITIONAL_TOOLS=("${SELECTED_ITEMS[@]}")
+if [[ ${#CONTAINERIZED_TOOLS[@]} -gt 0 ]]; then
+  echo ""
+  ADDITIONAL_TOOL_OPTIONS="openspec-container"
+  ADDITIONAL_TOOL_DESCS="Install OpenSpec inside containers (available in all containerized AI tools)"
 
-if [[ ${#ADDITIONAL_TOOLS[@]} -gt 0 ]]; then
-  echo "Additional tools selected: ${ADDITIONAL_TOOLS[*]}"
+  multi_select "Select Additional Tools (available in containerized AI tools)" "$ADDITIONAL_TOOL_OPTIONS" "$ADDITIONAL_TOOL_DESCS"
+  ADDITIONAL_TOOLS=("${SELECTED_ITEMS[@]}")
+
+  if [[ ${#ADDITIONAL_TOOLS[@]} -gt 0 ]]; then
+    echo "Additional tools selected: ${ADDITIONAL_TOOLS[*]}"
+  fi
+else
+  ADDITIONAL_TOOLS=()
 fi
 
 mkdir -p "$WORKSPACE"
@@ -345,10 +355,9 @@ for tool in "${TOOLS[@]}"; do
 done
 
 if [[ $NEEDS_BASE_IMAGE -eq 1 ]]; then
-  # Pass additional tools to base image installer
   INSTALL_OPENSPEC=0
   for addon in "${ADDITIONAL_TOOLS[@]}"; do
-    if [[ "$addon" == "openspec" ]]; then
+    if [[ "$addon" == "openspec-container" ]]; then
       INSTALL_OPENSPEC=1
     fi
   done
@@ -414,6 +423,9 @@ for tool in "${TOOLS[@]}"; do
     ux-ui-promax)
       bash "$SCRIPT_DIR/lib/install-ux-ui-promax.sh"
       ;;
+    openspec)
+      bash "$SCRIPT_DIR/lib/install-openspec.sh"
+      ;;
   esac
 done
 
@@ -446,9 +458,12 @@ for tool in "${TOOLS[@]}"; do
       echo "alias speckit='speckit'" >> "$SHELL_RC"
     fi
   elif [[ "$tool" == "ux-ui-promax" ]]; then
-    # UI UX Pro Max is installed globally via npm
     if ! grep -q "alias uipro=" "$SHELL_RC" 2>/dev/null; then
       echo "alias uipro='uipro'" >> "$SHELL_RC"
+    fi
+  elif [[ "$tool" == "openspec" ]]; then
+    if ! grep -q "alias openspec=" "$SHELL_RC" 2>/dev/null; then
+      echo "alias openspec='openspec'" >> "$SHELL_RC"
     fi
   else
     # Other tools use ai-run wrapper
@@ -471,6 +486,8 @@ for tool in "${TOOLS[@]}"; do
     echo "  speckit - Spec-driven development toolkit"
   elif [[ "$tool" == "ux-ui-promax" ]]; then
     echo "  uipro - UI/UX design intelligence tool"
+  elif [[ "$tool" == "openspec" ]]; then
+    echo "  openspec - OpenSpec CLI for spec-driven development"
   else
     echo "  ai-run $tool (or: $tool)"
   fi
@@ -478,10 +495,10 @@ done
 
 if [[ ${#ADDITIONAL_TOOLS[@]} -gt 0 ]]; then
   echo ""
-  echo "🔧 Additional tools (available inside AI tool containers):"
+  echo "🔧 Additional tools (available inside containerized AI tools):"
   for addon in "${ADDITIONAL_TOOLS[@]}"; do
     case $addon in
-      openspec)
+      openspec-container)
         echo "  openspec - OpenSpec CLI for spec-driven development"
         ;;
     esac
@@ -503,5 +520,8 @@ echo "   List folders:  cat $WORKSPACES_FILE"
 echo ""
 echo "📁 Per-project configs supported:"
 for tool in "${TOOLS[@]}"; do
+  if [[ "$tool" =~ ^(spec-kit|ux-ui-promax|openspec|vscode|codeserver)$ ]]; then
+    continue
+  fi
   echo "  .$tool.json (overrides global config in $HOME/.config/$tool or $HOME/.$tool)"
 done
