@@ -31,7 +31,7 @@ fi
 cat > "dockerfiles/base/Dockerfile" <<EOF
 FROM oven/bun:latest
 
-# Install common dependencies (Bun + Python for npm and pip tools)
+# Install common dependencies (Bun + Node.js + Python for full package manager support)
 RUN apt-get update && apt-get install -y --no-install-recommends \\
     git \\
     curl \\
@@ -48,6 +48,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \\
     && curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh \\
     && rm -rf /var/lib/apt/lists/* \\
     && pipx ensurepath
+
+# Install Node.js LTS (includes npm) via NodeSource
+RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \\
+    && apt-get install -y nodejs \\
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pnpm globally via npm
+RUN npm install -g pnpm
+
+# Verify installations
+RUN node --version && npm --version && pnpm --version && bun --version
 
 # Install additional tools (if selected)
 ${ADDITIONAL_TOOLS_INSTALL}
