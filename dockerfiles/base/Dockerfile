@@ -19,7 +19,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && pipx ensurepath
 
 # Install additional tools (if selected)
-
+RUN pipx install specify-cli --pip-args="git+https://github.com/github/spec-kit.git"
+RUN npm install -g uipro-cli
+RUN mkdir -p /usr/local/lib/openspec && \
+    cd /usr/local/lib/openspec && \
+    bun init -y && \
+    bun add @fission-ai/openspec && \
+    ln -sf /usr/local/lib/openspec/node_modules/.bin/openspec /usr/local/bin/openspec
 
 # Create workspace
 WORKDIR /workspace
