@@ -58,6 +58,34 @@ RUN npm install -g playwright && npx playwright install
 '
 fi
 
+if [[ "${INSTALL_RUBY:-0}" -eq 1 ]]; then
+  echo "📦 Ruby 3.3.0 + Rails 8.0.2 will be installed in base image"
+  ADDITIONAL_TOOLS_INSTALL+='# Install Ruby build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl-dev \
+    libreadline-dev \
+    zlib1g-dev \
+    libyaml-dev \
+    libffi-dev \
+    libgdbm-dev \
+    libncurses5-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install rbenv and ruby-build
+RUN git clone https://github.com/rbenv/rbenv.git /usr/local/rbenv && \
+    git clone https://github.com/rbenv/ruby-build.git /usr/local/rbenv/plugins/ruby-build
+
+ENV RBENV_ROOT=/usr/local/rbenv
+ENV PATH=$RBENV_ROOT/bin:$RBENV_ROOT/shims:$PATH
+
+# Install Ruby 3.3.0
+RUN rbenv install 3.3.0 && rbenv global 3.3.0 && rbenv rehash
+
+# Install Rails 8.0.2 and Bundler
+RUN gem install rails -v 8.0.2 && gem install bundler && rbenv rehash
+'
+fi
+
 cat > "dockerfiles/base/Dockerfile" <<EOF
 FROM oven/bun:latest
 

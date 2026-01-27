@@ -532,6 +532,34 @@ if [[ -n "$TTY_FLAGS" ]]; then
   CONTAINER_NAME="--name $(generate_container_name)"
 fi
 
+# Port exposure configuration
+PORT_MAPPINGS=""
+if [[ -n "${PORT:-}" ]]; then
+  PORT_BIND="${PORT_BIND:-localhost}"
+  BIND_ADDR="127.0.0.1"
+  
+  if [[ "$PORT_BIND" == "all" ]]; then
+    BIND_ADDR="0.0.0.0"
+    echo "⚠️  WARNING: Ports will be accessible from network (PORT_BIND=all)"
+  fi
+  
+  IFS=',' read -ra PORTS <<< "$PORT"
+  for port in "${PORTS[@]}"; do
+    # Trim whitespace
+    port=$(echo "$port" | tr -d ' ')
+    # Validate port number (1-65535)
+    if [[ "$port" =~ ^[0-9]+$ ]] && [ "$port" -ge 1 ] && [ "$port" -le 65535 ]; then
+      PORT_MAPPINGS="$PORT_MAPPINGS -p $BIND_ADDR:$port:$port"
+    else
+      echo "⚠️  WARNING: Invalid port number: $port (skipped)"
+    fi
+  done
+  
+  if [[ -n "$PORT_MAPPINGS" ]]; then
+    echo "🔌 Port mappings: ${PORT//,/ }"
+  fi
+fi
+
 # Debug output (only in verbose mode)
 if [[ "${AI_RUN_DEBUG:-}" == "1" ]]; then
   echo "🔧 Debug: TTY_FLAGS='$TTY_FLAGS'"
@@ -539,6 +567,9 @@ if [[ "${AI_RUN_DEBUG:-}" == "1" ]]; then
   echo "🔧 Debug: IMAGE='$IMAGE'"
   echo "🔧 Debug: SHELL_MODE='$SHELL_MODE'"
   echo "🔧 Debug: TOOL_ARGS='${TOOL_ARGS[@]}'"
+  echo "🔧 Debug: PORT='${PORT:-}'"
+  echo "🔧 Debug: PORT_BIND='${PORT_BIND:-localhost}'"
+  echo "🔧 Debug: PORT_MAPPINGS='$PORT_MAPPINGS'"
 fi
 
 # Prepare command based on mode
@@ -589,6 +620,7 @@ docker run $CONTAINER_NAME --rm $TTY_FLAGS \
   $GIT_MOUNTS \
   $NETWORK_OPTIONS \
   $HOST_ACCESS_ARGS \
+  $PORT_MAPPINGS \
   -v "$CACHE_DIR":/home/agent/.cache \
   -v "$HOME_DIR":/home/agent \
   -w "$CURRENT_DIR" \

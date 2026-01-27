@@ -315,15 +315,32 @@ done
 
 echo ""
 if [[ ${#CONTAINERIZED_TOOLS[@]} -gt 0 ]]; then
-  ADDITIONAL_TOOL_OPTIONS="spec-kit,ux-ui-promax,openspec,playwright"
-  ADDITIONAL_TOOL_DESCS="Spec-driven development toolkit,UI/UX design intelligence tool,OpenSpec - spec-driven development,Playwright browser automation (adds ~500MB)"
+  # Category 1: AI Enhancement Tools (spec-driven development, UI/UX, browser automation)
+  AI_TOOL_OPTIONS="spec-kit,ux-ui-promax,openspec,playwright"
+  AI_TOOL_DESCS="Spec-driven development toolkit,UI/UX design intelligence tool,OpenSpec - spec-driven development,Browser automation + Chromium/Firefox/WebKit (~500MB)"
 
-  multi_select "Select Additional Tools (installed in containers)" "$ADDITIONAL_TOOL_OPTIONS" "$ADDITIONAL_TOOL_DESCS"
-  ADDITIONAL_TOOLS=("${SELECTED_ITEMS[@]}")
+  multi_select "Select AI Enhancement Tools (installed in containers)" "$AI_TOOL_OPTIONS" "$AI_TOOL_DESCS"
+  AI_ENHANCEMENT_TOOLS=("${SELECTED_ITEMS[@]}")
 
-  if [[ ${#ADDITIONAL_TOOLS[@]} -gt 0 ]]; then
-    echo "Additional tools selected: ${ADDITIONAL_TOOLS[*]}"
+  if [[ ${#AI_ENHANCEMENT_TOOLS[@]} -gt 0 ]]; then
+    echo "AI tools selected: ${AI_ENHANCEMENT_TOOLS[*]}"
   fi
+
+  echo ""
+
+  # Category 2: Language Runtimes (Ruby, etc.)
+  LANG_OPTIONS="ruby"
+  LANG_DESCS="Ruby 3.3.0 + Rails 8.0.2 via rbenv (~500MB)"
+
+  multi_select "Select Additional Language Runtimes (installed in containers)" "$LANG_OPTIONS" "$LANG_DESCS"
+  LANGUAGE_RUNTIMES=("${SELECTED_ITEMS[@]}")
+
+  if [[ ${#LANGUAGE_RUNTIMES[@]} -gt 0 ]]; then
+    echo "Language runtimes selected: ${LANGUAGE_RUNTIMES[*]}"
+  fi
+
+  # Combine both categories for processing
+  ADDITIONAL_TOOLS=("${AI_ENHANCEMENT_TOOLS[@]}" "${LANGUAGE_RUNTIMES[@]}")
 else
   ADDITIONAL_TOOLS=()
   echo "ℹ️  No containerized AI tools selected. Skipping additional tools."
@@ -364,6 +381,7 @@ if [[ $NEEDS_BASE_IMAGE -eq 1 ]]; then
   INSTALL_UX_UI_PROMAX=0
   INSTALL_OPENSPEC=0
   INSTALL_PLAYWRIGHT=0
+  INSTALL_RUBY=0
   
   for addon in "${ADDITIONAL_TOOLS[@]}"; do
     case "$addon" in
@@ -379,10 +397,13 @@ if [[ $NEEDS_BASE_IMAGE -eq 1 ]]; then
       playwright)
         INSTALL_PLAYWRIGHT=1
         ;;
+      ruby)
+        INSTALL_RUBY=1
+        ;;
     esac
   done
   
-  export INSTALL_SPEC_KIT INSTALL_UX_UI_PROMAX INSTALL_OPENSPEC INSTALL_PLAYWRIGHT
+  export INSTALL_SPEC_KIT INSTALL_UX_UI_PROMAX INSTALL_OPENSPEC INSTALL_PLAYWRIGHT INSTALL_RUBY
   bash "$SCRIPT_DIR/lib/install-base.sh"
 fi
 

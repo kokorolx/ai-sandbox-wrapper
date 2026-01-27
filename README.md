@@ -293,6 +293,41 @@ export DOCKER_HOST=unix:///var/run/docker.sock
 export DOCKER_HOST=tcp://localhost:2375
 ```
 
+#### Port Exposure
+Expose container ports to the host for web development, APIs, and dev servers:
+
+```bash
+# Expose a single port (localhost only - secure default)
+PORT=3000 ai-run opencode
+
+# Expose multiple ports
+PORT=3000,5555,5556,5557 ai-run opencode
+
+# Expose to network (use with caution)
+PORT=3000 PORT_BIND=all ai-run opencode
+```
+
+| Variable | Values | Default | Description |
+|----------|--------|---------|-------------|
+| `PORT` | Comma-separated ports | (none) | Ports to expose (e.g., `3000,5555`) |
+| `PORT_BIND` | `localhost`, `all` | `localhost` | Bind to localhost only or all interfaces |
+
+**Security Notes:**
+- Default binding is `127.0.0.1` (localhost only) - only accessible from your machine
+- Using `PORT_BIND=all` exposes ports to your network - a warning is displayed
+- Invalid port numbers (outside 1-65535) are skipped with a warning
+
+**Example: Rails Development**
+```bash
+# Start container with Rails default port exposed
+PORT=3000 ai-run opencode --shell
+
+# Inside container, start Rails server
+rails server -b 0.0.0.0
+
+# Access from host browser at http://localhost:3000
+```
+
 #### API Keys
 Configure in `~/.ai-env`:
 
@@ -353,7 +388,9 @@ Each tool's config is mounted to `/home/agent/` inside the container.
 
 ### Additional Tools (Container-Only)
 
-During setup, you can optionally install additional tools into the base Docker image:
+During setup, you can optionally install additional tools into the base Docker image. Tools are organized into two categories:
+
+#### AI Enhancement Tools
 
 | Tool | Description | Size Impact |
 |------|-------------|-------------|
@@ -362,21 +399,43 @@ During setup, you can optionally install additional tools into the base Docker i
 | openspec | OpenSpec - spec-driven development | ~20MB |
 | playwright | Browser automation with Chromium/Firefox/WebKit | ~500MB |
 
-**Always Installed (for LSP support):**
-- `typescript` + `typescript-language-server` - Required for AI coding assistants with LSP integration
-
 **Playwright** is useful when AI tools need to:
 - Run browser-based tests
 - Scrape web content
 - Verify UI changes
 - Automate browser workflows
 
+#### Language Runtimes
+
+| Runtime | Description | Size Impact |
+|---------|-------------|-------------|
+| ruby | Ruby 3.3.0 + Rails 8.0.2 (via rbenv) | ~500MB |
+
+**Ruby/Rails** is useful when:
+- Developing Ruby on Rails applications
+- Running Rails generators and migrations
+- Using Bundler for dependency management
+- Building Ruby-based APIs and web apps
+
+#### Always Installed
+
+- `typescript` + `typescript-language-server` - Required for AI coding assistants with LSP integration
+
+#### Manual Installation
+
 ```bash
 # Manual build with Playwright (if not selected during setup)
 INSTALL_PLAYWRIGHT=1 bash lib/install-base.sh
 
+# Manual build with Ruby/Rails (if not selected during setup)
+INSTALL_RUBY=1 bash lib/install-base.sh
+
 # Verify Playwright in container
 docker run --rm ai-base:latest npx playwright --version
+
+# Verify Ruby/Rails in container
+docker run --rm ai-base:latest ruby --version
+docker run --rm ai-base:latest rails --version
 
 # Verify TypeScript LSP
 docker run --rm ai-base:latest tsc --version
