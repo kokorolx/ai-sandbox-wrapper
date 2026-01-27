@@ -37,6 +37,31 @@ RUN mkdir -p /usr/local/lib/openspec && \
     bun init -y && \
     bun add @fission-ai/openspec && \
     ln -sf /usr/local/lib/openspec/node_modules/.bin/openspec /usr/local/bin/openspec
+# Install Playwright system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libglib2.0-0 \
+    libnspr4 \
+    libnss3 \
+    libdbus-1-3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libxcb1 \
+    libxkbcommon0 \
+    libatspi2.0-0 \
+    libx11-6 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libcairo2 \
+    libpango-1.0-0 \
+    libasound2 \
+    && rm -rf /var/lib/apt/lists/*
+# Install Playwright and browsers via npm (avoids pnpm global bin issues)
+RUN npm install -g playwright && npx playwright install
 
 # Create workspace
 WORKDIR /workspace
