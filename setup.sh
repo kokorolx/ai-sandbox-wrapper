@@ -315,8 +315,8 @@ done
 
 echo ""
 if [[ ${#CONTAINERIZED_TOOLS[@]} -gt 0 ]]; then
-  ADDITIONAL_TOOL_OPTIONS="spec-kit,ux-ui-promax,openspec"
-  ADDITIONAL_TOOL_DESCS="Spec-driven development toolkit,UI/UX design intelligence tool,OpenSpec - spec-driven development"
+  ADDITIONAL_TOOL_OPTIONS="spec-kit,ux-ui-promax,openspec,playwright"
+  ADDITIONAL_TOOL_DESCS="Spec-driven development toolkit,UI/UX design intelligence tool,OpenSpec - spec-driven development,Playwright browser automation (adds ~500MB)"
 
   multi_select "Select Additional Tools (installed in containers)" "$ADDITIONAL_TOOL_OPTIONS" "$ADDITIONAL_TOOL_DESCS"
   ADDITIONAL_TOOLS=("${SELECTED_ITEMS[@]}")
@@ -343,8 +343,12 @@ EOF
   echo "⚠️  Edit $ENV_FILE with your real API keys"
 fi
 
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get script directory (supports both direct execution and npx)
+if [[ -n "$AI_SANDBOX_ROOT" ]]; then
+  SCRIPT_DIR="$AI_SANDBOX_ROOT"
+else
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
 
 # Install base image if any containerized tools selected (vscode doesn't need it)
 NEEDS_BASE_IMAGE=0
@@ -359,6 +363,7 @@ if [[ $NEEDS_BASE_IMAGE -eq 1 ]]; then
   INSTALL_SPEC_KIT=0
   INSTALL_UX_UI_PROMAX=0
   INSTALL_OPENSPEC=0
+  INSTALL_PLAYWRIGHT=0
   
   for addon in "${ADDITIONAL_TOOLS[@]}"; do
     case "$addon" in
@@ -371,10 +376,13 @@ if [[ $NEEDS_BASE_IMAGE -eq 1 ]]; then
       openspec)
         INSTALL_OPENSPEC=1
         ;;
+      playwright)
+        INSTALL_PLAYWRIGHT=1
+        ;;
     esac
   done
   
-  export INSTALL_SPEC_KIT INSTALL_UX_UI_PROMAX INSTALL_OPENSPEC
+  export INSTALL_SPEC_KIT INSTALL_UX_UI_PROMAX INSTALL_OPENSPEC INSTALL_PLAYWRIGHT
   bash "$SCRIPT_DIR/lib/install-base.sh"
 fi
 
