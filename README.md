@@ -39,13 +39,17 @@ docker --version
 docker ps  # Should not show errors
 ```
 
-### Step 2: Download and Setup
+### Step 2: Run Setup
+
+**Option A: Using npx (Recommended)**
 ```bash
-# Clone the repository
+npx @kokorolx/ai-sandbox-wrapper setup
+```
+
+**Option B: Clone and run manually**
+```bash
 git clone https://github.com/kokorolx/ai-sandbox-wrapper.git
 cd ai-sandbox-wrapper
-
-# Run the setup script
 ./setup.sh
 ```
 
@@ -347,6 +351,37 @@ When using global configs (not project-specific), they're stored in:
 
 Each tool's config is mounted to `/home/agent/` inside the container.
 
+### Additional Tools (Container-Only)
+
+During setup, you can optionally install additional tools into the base Docker image:
+
+| Tool | Description | Size Impact |
+|------|-------------|-------------|
+| spec-kit | Spec-driven development toolkit | ~50MB |
+| ux-ui-promax | UI/UX design intelligence tool | ~30MB |
+| openspec | OpenSpec - spec-driven development | ~20MB |
+| playwright | Browser automation with Chromium/Firefox/WebKit | ~500MB |
+
+**Always Installed (for LSP support):**
+- `typescript` + `typescript-language-server` - Required for AI coding assistants with LSP integration
+
+**Playwright** is useful when AI tools need to:
+- Run browser-based tests
+- Scrape web content
+- Verify UI changes
+- Automate browser workflows
+
+```bash
+# Manual build with Playwright (if not selected during setup)
+INSTALL_PLAYWRIGHT=1 bash lib/install-base.sh
+
+# Verify Playwright in container
+docker run --rm ai-base:latest npx playwright --version
+
+# Verify TypeScript LSP
+docker run --rm ai-base:latest tsc --version
+```
+
 ### Git Workflow
 AI tools work **inside** containers without Git credentials by default (secure).
 
@@ -493,9 +528,7 @@ ls ~/bin/
 source ~/.zshrc
 
 # Update to latest version
-cd ~/ai-sandbox-wrapper
-git pull
-./setup.sh  # Re-run to update tools
+npx @kokorolx/ai-sandbox-wrapper@latest setup
 ```
 
 ## 🤝 Contributing

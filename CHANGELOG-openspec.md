@@ -1,9 +1,31 @@
 # OpenSpec Integration Changelog
 
 ## Summary
-Added support for three additional productivity tools (spec-kit, ux-ui-promax, openspec) to the AI Sandbox Wrapper. All tools are installed **inside Docker containers only** (no host installation), making them available to all containerized AI tools.
+Added support for additional productivity tools (spec-kit, ux-ui-promax, openspec, playwright) to the AI Sandbox Wrapper. All tools are installed **inside Docker containers only** (no host installation), making them available to all containerized AI tools.
 
 ## Timeline
+
+### 2026-01-27 - Session: Playwright + TypeScript Support
+
+**Changes:**
+- Added `playwright` as optional additional tool in setup menu
+- Added TypeScript + typescript-language-server to base image (always installed)
+- Fixed pnpm global bin issue by using npm for Playwright installation
+
+**Files Modified:**
+- `setup.sh`: Added `playwright` to ADDITIONAL_TOOL_OPTIONS menu
+- `lib/install-base.sh`: 
+  - Added TypeScript/LSP installation (always)
+  - Added Playwright conditional block with system dependencies
+- `README.md`: Added "Additional Tools" documentation section
+
+**Playwright Dependencies (installed when selected):**
+- System libs: libglib2.0-0, libnspr4, libnss3, libdbus-1-3, libatk1.0-0, libatk-bridge2.0-0, libcups2, libxcb1, libxkbcommon0, libatspi2.0-0, libx11-6, libxcomposite1, libxdamage1, libxext6, libxfixes3, libxrandr2, libgbm1, libcairo2, libpango-1.0-0, libasound2
+- Playwright + browsers via npm
+
+**TypeScript/LSP (always installed):**
+- `typescript` - TypeScript compiler (tsc)
+- `typescript-language-server` - LSP for AI coding assistants
 
 ### 2026-01-23 - Session 1: Initial OpenSpec Support
 **Commit:** `ea7c1ca` - feat: add OpenSpec as optional additional tool in base image
@@ -86,6 +108,8 @@ All three additional tools are installed **in the base Docker image** (`ai-base:
 | **spec-kit** | pipx (Python) | `git+https://github.com/github/spec-kit.git` | `specify` |
 | **ux-ui-promax** | bun | `uipro-cli` | `uipro` |
 | **openspec** | bun (local) | `@fission-ai/openspec` | `openspec` |
+| **playwright** | npm | `playwright` | `npx playwright` |
+| **typescript** | npm (always) | `typescript`, `typescript-language-server` | `tsc`, `typescript-language-server` |
 
 ### Files Modified
 1. **`setup.sh`**:
