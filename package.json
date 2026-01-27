@@ -1,0 +1,46 @@
+{
+  "name": "@kokorolx/ai-sandbox-wrapper",
+  "version": "1.0.0",
+  "description": "Docker-based security sandbox for AI coding agents. Isolate Claude, Gemini, Aider, and other AI tools from your host system.",
+  "keywords": [
+    "ai",
+    "sandbox",
+    "docker",
+    "security",
+    "claude",
+    "gemini",
+    "aider",
+    "opencode",
+    "coding-assistant"
+  ],
+  "homepage": "https://github.com/kokorolx/ai-sandbox-wrapper",
+  "bugs": {
+    "url": "https://github.com/kokorolx/ai-sandbox-wrapper/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kokorolx/ai-sandbox-wrapper.git"
+  },
+  "license": "MIT",
+  "author": "kokorolx",
+  "bin": {
+    "ai-sandbox-wrapper": "./bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "dockerfiles/",
+    "setup.sh",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node bin/cli.js help && bash -n setup.sh && echo '✅ All tests passed'",
+    "lint": "bash -n setup.sh && bash -n lib/*.sh && echo '✅ Shell scripts valid'",
+    "lint:js": "node --check bin/cli.js && echo '✅ JavaScript valid'",
+    "prepublishOnly": "npm run lint && npm run lint:js && npm run test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
