@@ -6,6 +6,8 @@ shift
 
 # Parse flags
 SHELL_MODE=false
+NETWORK_FLAG=false
+NETWORK_ARG=""
 TOOL_ARGS=()
 
 while [[ $# -gt 0 ]]; do
@@ -13,6 +15,15 @@ while [[ $# -gt 0 ]]; do
     --shell|-s)
       SHELL_MODE=true
       shift
+      ;;
+    --network|-n)
+      NETWORK_FLAG=true
+      shift
+      # Check if next arg is a network name (not another flag)
+      if [[ $# -gt 0 && ! "$1" =~ ^- ]]; then
+        NETWORK_ARG="$1"
+        shift
+      fi
       ;;
     *)
       TOOL_ARGS+=("$1")
@@ -148,130 +159,417 @@ else
   esac
 fi
 
+# ============================================================================
+# NETWORK CONFIGURATION
+# ============================================================================
+
+AI_SANDBOX_CONFIG="$HOME/.ai-sandbox/config.json"
+
+# Ensure jq is available (fallback to basic parsing if not)
+has_jq() {
+  command -v jq &>/dev/null
+}
+
+# Initialize config file if it doesn't exist
+init_config() {
+  mkdir -p "$(dirname "$AI_SANDBOX_CONFIG")"
+  if [[ ! -f "$AI_SANDBOX_CONFIG" ]]; then
+    echo '{"version":1,"networks":{"global":[],"workspaces":{}}}' > "$AI_SANDBOX_CONFIG"
+    chmod 600 "$AI_SANDBOX_CONFIG"
+  fi
+}
+
+# Read networks for current workspace (workspace > global > empty)
+read_network_config() {
+  init_config
+  local workspace="$CURRENT_DIR"
+  
+  if has_jq; then
+    # Try workspace-specific first
+    local ws_networks=$(jq -r --arg ws "$workspace" '.networks.workspaces[$ws] // empty | .[]?' "$AI_SANDBOX_CONFIG" 2>/dev/null)
+    if [[ -n "$ws_networks" ]]; then
+      echo "$ws_networks"
+      return
+    fi
+    # Fall back to global
+    jq -r '.networks.global[]?' "$AI_SANDBOX_CONFIG" 2>/dev/null
+  else
+    # Fallback: grep-based parsing (basic)
+    grep -o '"global":\s*\[[^]]*\]' "$AI_SANDBOX_CONFIG" 2>/dev/null | grep -o '"[^"]*"' | tr -d '"' | grep -v global
+  fi
+}
+
+# Write networks to config (scope: workspace or global)
+write_network_config() {
+  local scope="$1"  # "workspace" or "global"
+  shift
+  local networks=("$@")
+  
+  init_config
+  
+  if has_jq; then
+    local json_array=$(printf '%s\n' "${networks[@]}" | jq -R . | jq -s .)
+    
+    if [[ "$scope" == "workspace" ]]; then
+      jq --arg ws "$CURRENT_DIR" --argjson nets "$json_array" \
+        '.networks.workspaces[$ws] = $nets' "$AI_SANDBOX_CONFIG" > "$AI_SANDBOX_CONFIG.tmp" \
+        && mv "$AI_SANDBOX_CONFIG.tmp" "$AI_SANDBOX_CONFIG"
+    else
+      jq --argjson nets "$json_array" \
+        '.networks.global = $nets' "$AI_SANDBOX_CONFIG" > "$AI_SANDBOX_CONFIG.tmp" \
+        && mv "$AI_SANDBOX_CONFIG.tmp" "$AI_SANDBOX_CONFIG"
+    fi
+    chmod 600 "$AI_SANDBOX_CONFIG"
+  else
+    echo "⚠️  jq not found. Please install jq to save network configuration."
+    return 1
+  fi
+}
+
+# Validate networks exist, return only valid ones
+validate_networks() {
+  local networks=("$@")
+  local valid=()
+  
+  for net in "${networks[@]}"; do
+    [[ -z "$net" ]] && continue
+    if docker network inspect "$net" &>/dev/null; then
+      valid+=("$net")
+    fi
+  done
+  
+  printf '%s\n' "${valid[@]}"
+}
+
+# Discover Docker Compose networks (have com.docker.compose.project label)
+discover_compose_networks() {
+  docker network ls --filter "label=com.docker.compose.project" --format "{{.Name}}" 2>/dev/null | sort
+}
+
+# Discover custom networks (not system, not compose)
+discover_custom_networks() {
+  local compose_nets=$(discover_compose_networks)
+  docker network ls --format "{{.Name}}" 2>/dev/null | while read -r net; do
+    # Skip system networks
+    [[ "$net" == "bridge" || "$net" == "host" || "$net" == "none" ]] && continue
+    # Skip compose networks
+    echo "$compose_nets" | grep -q "^${net}$" && continue
+    echo "$net"
+  done | sort
+}
+
+# Get containers in a network
+get_network_containers() {
+  local network="$1"
+  docker network inspect "$network" --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null | xargs | tr ' ' ', '
+}
+
+# Interactive network selection menu (multi-select)
+show_network_menu() {
+  local compose_nets=()
+  local custom_nets=()
+  local all_nets=()
+  local selected=()
+  
+  echo "🔍 Discovering Docker networks..."
+  echo ""
+  
+  # Gather networks
+  while IFS= read -r net; do
+    [[ -n "$net" ]] && compose_nets+=("$net")
+  done < <(discover_compose_networks)
+  
+  while IFS= read -r net; do
+    [[ -n "$net" ]] && custom_nets+=("$net")
+  done < <(discover_custom_networks)
+  
+  # Build combined list: select-all first, then compose, then custom, then "none"
+  # Index layout: [0]=select-all, [1..compose_count]=compose, [compose_count+1..custom_end]=custom, [last]=none
+  local network_count=$((${#compose_nets[@]} + ${#custom_nets[@]}))
+  all_nets=("select-all" "${compose_nets[@]}" "${custom_nets[@]}" "none")
+  
+  if [[ $network_count -eq 0 ]]; then
+    echo "ℹ️  No Docker networks found (besides system networks)."
+    SELECTED_NETWORKS=()
+    return 0
+  fi
+  
+  # Initialize selection array (none is pre-selected)
+  local sel=()
+  local select_all_idx=0
+  local compose_start=1
+  local compose_end=$((1 + ${#compose_nets[@]}))
+  local custom_start=$compose_end
+  local none_idx=$((${#all_nets[@]} - 1))
+  
+  for ((i=0; i<${#all_nets[@]}; i++)); do
+    if [[ "${all_nets[$i]}" == "none" ]]; then
+      sel[$i]=1
+    else
+      sel[$i]=0
+    fi
+  done
+  
+  local cursor=0
+  
+  tput civis
+  trap 'tput cnorm' INT TERM EXIT
+  
+  while true; do
+    clear
+    echo "🔗 Network Selection"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    
+    # Select All option
+    local check="[ ]"
+    [[ ${sel[$select_all_idx]} -eq 1 ]] && check="[x]"
+    if [[ $cursor -eq $select_all_idx ]]; then
+      tput setaf 6
+      printf "  ➔ %s Select All\n" "$check"
+    else
+      printf "    %s Select All\n" "$check"
+    fi
+    tput sgr0
+    echo ""
+    
+    # Compose Networks section
+    if [[ ${#compose_nets[@]} -gt 0 ]]; then
+      echo "Compose Networks:"
+      for ((i=compose_start; i<compose_end; i++)); do
+        local net="${all_nets[$i]}"
+        local containers=$(get_network_containers "$net")
+        local check="[ ]"
+        [[ ${sel[$i]} -eq 1 ]] && check="[x]"
+        
+        if [[ $i -eq $cursor ]]; then
+          tput setaf 6
+          printf "  ➔ %s %-30s" "$check" "$net"
+        else
+          printf "    %s %-30s" "$check" "$net"
+        fi
+        
+        if [[ -n "$containers" ]]; then
+          tput setaf 8
+          printf " (%s)" "$containers"
+        fi
+        tput sgr0
+        echo ""
+      done
+      echo ""
+    fi
+    
+    # Custom Networks section
+    if [[ ${#custom_nets[@]} -gt 0 ]]; then
+      echo "Other Networks:"
+      for ((i=custom_start; i<none_idx; i++)); do
+        local net="${all_nets[$i]}"
+        local containers=$(get_network_containers "$net")
+        local check="[ ]"
+        [[ ${sel[$i]} -eq 1 ]] && check="[x]"
+        
+        if [[ $i -eq $cursor ]]; then
+          tput setaf 6
+          printf "  ➔ %s %-30s" "$check" "$net"
+        else
+          printf "    %s %-30s" "$check" "$net"
+        fi
+        
+        if [[ -n "$containers" ]]; then
+          tput setaf 8
+          printf " (%s)" "$containers"
+        fi
+        tput sgr0
+        echo ""
+      done
+      echo ""
+    fi
+    
+    # None option
+    echo ""
+    local check="[ ]"
+    [[ ${sel[$none_idx]} -eq 1 ]] && check="[x]"
+    if [[ $cursor -eq $none_idx ]]; then
+      tput setaf 6
+      printf "  ➔ %s None (no network)\n" "$check"
+    else
+      printf "    %s None (no network)\n" "$check"
+    fi
+    tput sgr0
+    
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "↑↓ Move  SPACE Select  a Select All  ENTER Confirm"
+    
+    # Read input
+    IFS= read -rsn1 key
+    if [[ "$key" == $'\x1b' ]]; then
+      read -rsn2 -t 1 escape_seq
+      case "$escape_seq" in
+        '[A') ((cursor > 0)) && ((cursor--)) ;;
+        '[B') ((cursor < ${#all_nets[@]} - 1)) && ((cursor++)) ;;
+      esac
+    else
+      case "$key" in
+        ' ')
+          # Toggle selection
+          if [[ $cursor -eq $select_all_idx ]]; then
+            # Toggle select all
+            if [[ ${sel[$select_all_idx]} -eq 1 ]]; then
+              # Deselect all, select none
+              for ((i=0; i<${#all_nets[@]}; i++)); do sel[$i]=0; done
+              sel[$none_idx]=1
+            else
+              # Select all networks, deselect none
+              for ((i=0; i<${#all_nets[@]}; i++)); do sel[$i]=1; done
+              sel[$none_idx]=0
+            fi
+          elif [[ $cursor -eq $none_idx ]]; then
+            # Selecting "none" clears all others
+            for ((i=0; i<${#all_nets[@]}; i++)); do sel[$i]=0; done
+            sel[$none_idx]=1
+          else
+            # Selecting a network clears "none" and updates select-all state
+            sel[$none_idx]=0
+            if [[ ${sel[$cursor]} -eq 1 ]]; then
+              sel[$cursor]=0
+              sel[$select_all_idx]=0
+            else
+              sel[$cursor]=1
+              # Check if all networks are now selected
+              local all_selected=1
+              for ((i=compose_start; i<none_idx; i++)); do
+                [[ ${sel[$i]} -eq 0 ]] && all_selected=0 && break
+              done
+              sel[$select_all_idx]=$all_selected
+            fi
+          fi
+          ;;
+        'a'|'A')
+          # Quick select all
+          for ((i=0; i<${#all_nets[@]}; i++)); do sel[$i]=1; done
+          sel[$none_idx]=0
+          ;;
+        ''|$'\n'|$'\r')
+          break
+          ;;
+        k) ((cursor > 0)) && ((cursor--)) ;;
+        j) ((cursor < ${#all_nets[@]} - 1)) && ((cursor++)) ;;
+      esac
+    fi
+  done
+  
+  tput cnorm
+  trap - INT TERM EXIT
+  
+  # Collect selected networks (exclude select-all and none)
+  SELECTED_NETWORKS=()
+  for ((i=1; i<${#all_nets[@]}; i++)); do
+    if [[ ${sel[$i]} -eq 1 && "${all_nets[$i]}" != "none" && "${all_nets[$i]}" != "select-all" ]]; then
+      SELECTED_NETWORKS+=("${all_nets[$i]}")
+    fi
+  done
+}
+
+# Save prompt after selection
+show_save_prompt() {
+  local options=("This workspace" "Global (all workspaces)" "Don't save")
+  local cursor=0
+  
+  echo ""
+  
+  tput civis
+  trap 'tput cnorm' INT TERM EXIT
+  
+  while true; do
+    # Move cursor up to redraw (3 options + header)
+    tput cuu 5 2>/dev/null || true
+    tput ed 2>/dev/null || true
+    
+    echo "Save selection?"
+    for ((i=0; i<${#options[@]}; i++)); do
+      if [[ $i -eq $cursor ]]; then
+        tput setaf 6
+        if [[ $i -eq 0 ]]; then
+          printf "  ➔ %s (%s)\n" "${options[$i]}" "$CURRENT_DIR"
+        else
+          printf "  ➔ %s\n" "${options[$i]}"
+        fi
+      else
+        if [[ $i -eq 0 ]]; then
+          printf "    %s (%s)\n" "${options[$i]}" "$CURRENT_DIR"
+        else
+          printf "    %s\n" "${options[$i]}"
+        fi
+      fi
+      tput sgr0
+    done
+    
+    IFS= read -rsn1 key
+    if [[ "$key" == $'\x1b' ]]; then
+      read -rsn2 -t 1 escape_seq
+      case "$escape_seq" in
+        '[A') ((cursor > 0)) && ((cursor--)) ;;
+        '[B') ((cursor < 2)) && ((cursor++)) ;;
+      esac
+    else
+      case "$key" in
+        ''|$'\n'|$'\r') break ;;
+        k) ((cursor > 0)) && ((cursor--)) ;;
+        j) ((cursor < 2)) && ((cursor++)) ;;
+      esac
+    fi
+  done
+  
+  tput cnorm
+  trap - INT TERM EXIT
+  
+  SAVE_CHOICE=$cursor  # 0=workspace, 1=global, 2=don't save
+}
+
+# Network configuration
+NETWORK_OPTIONS=""
+HOST_ACCESS_ARGS="--add-host=host.docker.internal:host-gateway"
+SELECTED_NETWORKS=()
+
+if [[ "$NETWORK_FLAG" == "true" ]]; then
+  if [[ -n "$NETWORK_ARG" ]]; then
+    # Direct specification: -n net1,net2
+    IFS=',' read -ra SELECTED_NETWORKS <<< "$NETWORK_ARG"
+  elif [[ -t 0 ]]; then
+    # Interactive mode: show menu
+    show_network_menu
+    
+    if [[ ${#SELECTED_NETWORKS[@]} -gt 0 ]]; then
+      show_save_prompt
+      case $SAVE_CHOICE in
+        0) write_network_config "workspace" "${SELECTED_NETWORKS[@]}" && echo "✅ Saved for this workspace" ;;
+        1) write_network_config "global" "${SELECTED_NETWORKS[@]}" && echo "✅ Saved globally" ;;
+        *) echo "ℹ️  Using for this session only" ;;
+      esac
+    fi
+  else
+    echo "⚠️  Non-interactive mode. Use -n network1,network2 to specify networks."
+  fi
+else
+  # No flag: use saved config silently
+  while IFS= read -r net; do
+    [[ -n "$net" ]] && SELECTED_NETWORKS+=("$net")
+  done < <(read_network_config)
+fi
+
+# Validate and build network options
+if [[ ${#SELECTED_NETWORKS[@]} -gt 0 ]]; then
+  while IFS= read -r net; do
+    [[ -n "$net" ]] && NETWORK_OPTIONS="$NETWORK_OPTIONS --network $net"
+  done < <(validate_networks "${SELECTED_NETWORKS[@]}")
+fi
+
 # Git access control (opt-in per workspace)
 GIT_MOUNTS=""
 GIT_ALLOWED_FILE="$HOME/.ai-git-allowed"
 GIT_CACHE_DIR="$HOME/.ai-cache/git"
 touch "$GIT_ALLOWED_FILE"
-
-# Network configuration for Docker network access
-NETWORK_FILE="$HOME/.ai-networks"
-NETWORK_MOUNTS=""
-NETWORK_OPTIONS=""
-HOST_ACCESS_ARGS=""
-METAMCP_JOINED=false
-
-# Read configured networks (with deduplication)
-if [[ -f "$NETWORK_FILE" ]]; then
-  while IFS= read -r network; do
-    [ -z "$network" ] && continue
-    
-    # Skip if already added to NETWORK_OPTIONS (deduplication)
-    if [[ "$NETWORK_OPTIONS" == *"--network $network"* ]]; then
-      continue
-    fi
-    
-    # Check if network exists
-    if docker network inspect "$network" >/dev/null 2>&1; then
-      NETWORK_OPTIONS="$NETWORK_OPTIONS --network $network"
-      
-      # Check if this network requires host access
-      if [[ "$network" == *"metamcp"* ]]; then
-        # Add host.docker.internal for host service access (Linux requires --add-host)
-        # Docker Desktop on Mac/Windows has this by default
-        HOST_ACCESS_ARGS="--add-host=host.docker.internal:host-gateway"
-        METAMCP_JOINED=true
-      fi
-    else
-      echo "⚠️  Network '$network' not found (may have been removed)"
-    fi
-  done < "$NETWORK_FILE"
-fi
-
-# Check if we should prompt about detected MetaMCP network
-# Only prompt if: network exists AND not already joined AND interactive mode
-if [[ "$METAMCP_JOINED" != "true" ]] && docker network inspect "metamcp_metamcp-network" >/dev/null 2>&1; then
-  if [[ -t 0 ]]; then
-    # Interactive arrow-key menu
-    cursor=0
-    options=("Join network (container-to-container)" "Use host.docker.internal (host access)")
-    
-    tput civis
-    trap 'tput cnorm; exit' INT TERM
-    
-    while true; do
-      clear
-      echo "🔗 MetaMCP Network Configuration"
-      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-      echo "A Docker network 'metamcp_metamcp-network' was detected."
-      echo ""
-      echo "Choose how AI tools should access MetaMCP:"
-      echo ""
-      
-      for i in "${!options[@]}"; do
-        if [ "$i" -eq "$cursor" ]; then
-          prefix="➔ "
-          tput setaf 6
-        else
-          prefix="  "
-        fi
-        
-        printf "%s %s\n" "$prefix" "${options[$i]}"
-        tput sgr0
-      done
-      
-      echo ""
-      echo "Use ARROWS to move, ENTER to select"
-      
-      IFS= read -rsn1 key
-      if [[ "$key" == $'\x1b' ]]; then
-        read -rsn1 -t 1 next1
-        read -rsn1 -t 1 next2
-        case "$next1$next2" in
-          '[A') ((cursor--)) ;;
-          '[B') ((cursor++)) ;;
-        esac
-      else
-        case "$key" in
-          k) ((cursor--)) ;;
-          j) ((cursor++)) ;;
-          "") break ;;
-          $'\n'|$'\r') break ;;
-        esac
-      fi
-      
-      if [ "$cursor" -lt 0 ]; then cursor=$((${#options[@]} - 1)); fi
-      if [ "$cursor" -ge "${#options[@]}" ]; then cursor=0; fi
-    done
-    
-    tput cnorm
-    
-    if [ "$cursor" -eq 0 ]; then
-      # Join network - but only if not already in file
-      if ! grep -q "^metamcp_metamcp-network$" "$NETWORK_FILE" 2>/dev/null; then
-        echo "metamcp_metamcp-network" >> "$NETWORK_FILE"
-      fi
-      NETWORK_OPTIONS="$NETWORK_OPTIONS --network metamcp_metamcp-network"
-      HOST_ACCESS_ARGS="--add-host=host.docker.internal:host-gateway"
-      METAMCP_JOINED=true
-      echo ""
-      echo "✅ Network joined. Both host.docker.internal and MetaMCP network enabled."
-    else
-      # Use host.docker.internal
-      HOST_ACCESS_ARGS="--add-host=host.docker.internal:host-gateway"
-      echo ""
-      echo "ℹ️  Using host.docker.internal only. MetaMCP accessible at localhost:12008 on host."
-    fi
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-  else
-    # Non-interactive: just use host.docker.internal
-    HOST_ACCESS_ARGS="--add-host=host.docker.internal:host-gateway"
-  fi
-elif [[ "$METAMCP_JOINED" != "true" ]]; then
-  # No network, but ensure host.docker.internal is available
-  HOST_ACCESS_ARGS="--add-host=host.docker.internal:host-gateway"
-fi
 
 # Check if Git access is allowed for this workspace
 if grep -q "^$CURRENT_DIR$" "$GIT_ALLOWED_FILE" 2>/dev/null; then

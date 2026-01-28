@@ -231,66 +231,6 @@ echo "📁 Whitelisted workspaces saved to: $WORKSPACES_FILE"
 # Use first workspace as default for backwards compatibility
 WORKSPACE="${WORKSPACES[0]}"
 
-# Network configuration for Docker network access
-echo ""
-echo "🔗 Docker Network Configuration"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "You can configure AI tools to join existing Docker networks"
-echo "(e.g., for MetaMCP services, databases, or other containers)."
-echo ""
-
-# Check for existing MetaMCP network
-if docker network inspect "metamcp_metamcp-network" >/dev/null 2>&1; then
-  echo "✅ Found existing network: metamcp_metamcp-network"
-  echo ""
-  
-  # Use single_select for interactive choice
-  single_select "MetaMCP Access Method" "join,host-only" "Join network (container-to-container communication),Use host.docker.internal (host access)"
-  
-  case "$SELECTED_ITEM" in
-    join)
-      NETWORK_FILE="$HOME/.ai-networks"
-      echo "metamcp_metamcp-network" >> "$NETWORK_FILE"
-      chmod 600 "$NETWORK_FILE"
-      echo ""
-      echo "✅ Network joined. Both host.docker.internal and MetaMCP network enabled."
-      ;;
-    host-only|"")
-      echo ""
-      echo "ℹ️  Using host.docker.internal only. MetaMCP accessible at localhost:12008 on host."
-      ;;
-  esac
-else
-  echo "No existing MetaMCP network detected."
-  echo ""
-  echo "You have two options:"
-  echo ""
-  echo "Option 1: Use host.docker.internal (recommended for most cases)"
-  echo "          MetaMCP at localhost:12008 on your host machine"
-  echo "          Already enabled by default"
-  echo ""
-  echo "Option 2: Join a Docker network"
-  echo "          For container-to-container communication"
-  echo ""
-  read -p "Enter a Docker network name to join (leave empty to skip): " network_name
-  
-  if [[ -n "$network_name" ]]; then
-    if docker network inspect "$network_name" >/dev/null 2>&1; then
-      NETWORK_FILE="$HOME/.ai-networks"
-      echo "$network_name" >> "$NETWORK_FILE"
-      chmod 600 "$NETWORK_FILE"
-      echo "✅ Network '$network_name' saved"
-    else
-      echo "⚠️  Network '$network_name' not found. Skipping."
-    fi
-  else
-    echo "ℹ️  Skipped. host.docker.internal is enabled for host access."
-  fi
-fi
-
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-
 # Tool definitions
 TOOL_OPTIONS="amp,opencode,droid,claude,gemini,kilo,qwen,codex,qoder,auggie,codebuddy,jules,shai,vscode,codeserver"
 TOOL_DESCS="AI coding assistant from @sourcegraph/amp,Open-source coding tool from opencode-ai,Factory CLI from factory.ai,Claude Code CLI from Anthropic,Google Gemini CLI (free tier),AI pair programmer (Git-native),Kilo Code (500+ models),Alibaba Qwen CLI (1M context),OpenAI Codex terminal agent,Qoder AI CLI assistant,Augment Auggie CLI,Tencent CodeBuddy CLI,Google Jules CLI,OVHcloud SHAI agent,VSCode Desktop in Docker (X11),VSCode in browser (fast)"

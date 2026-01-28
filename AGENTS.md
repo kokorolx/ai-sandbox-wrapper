@@ -111,7 +111,7 @@ nano ~/.ai-env
 ## Docker Network Support
 
 **MetaMCP and multi-container setups:**
-- Auto-detects and joins `metamcp_metamcp-network`
+- Join networks at runtime using the `-n` / `--network` flag
 - Enables `host.docker.internal` for host service access
 - See [METAMCP_GUIDE.md](METAMCP_GUIDE.md) for detailed integration instructions
 
@@ -140,10 +140,15 @@ $ ai-run claude
 ### Network Management Commands
 
 ```bash
-ai-network list              # Show configured networks
-ai-network metamcp           # Add MetaMCP network
-ai-network add <name>        # Add custom network
-ai-network remove <name>     # Remove a network
+# Interactive network selection
+ai-run opencode -n
+
+# Direct network specification
+ai-run opencode -n metamcp_metamcp-network
+ai-run opencode -n network1,network2
+
+# Saved networks config
+cat ~/.ai-sandbox/config.json
 
 # List AI tool containers (named by project folder)
 docker ps --filter "name=opencode-" --filter "name=claude-"

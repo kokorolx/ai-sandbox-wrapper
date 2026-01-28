@@ -252,6 +252,50 @@ echo '/path/to/project' >> ~/.ai-workspaces
 cat ~/.ai-workspaces
 ```
 
+### Network Configuration
+
+AI containers can join Docker networks to communicate with other services (databases, APIs, MetaMCP).
+
+#### Runtime Selection (Recommended)
+
+```bash
+# Interactive network selection
+ai-run opencode -n
+
+# Direct network specification
+ai-run opencode -n metamcp_metamcp-network
+ai-run opencode -n network1,network2,network3
+```
+
+#### Saved Configuration
+
+Network selections are saved to `~/.ai-sandbox/config.json`:
+- **Per-workspace**: Saved for specific project directories
+- **Global**: Default for all workspaces
+
+```bash
+# View current config
+cat ~/.ai-sandbox/config.json
+
+# Example config structure
+{
+  "version": 1,
+  "networks": {
+    "global": ["shared-services"],
+    "workspaces": {
+      "/Users/you/projects/my-app": ["my-app_default", "redis_network"]
+    }
+  }
+}
+```
+
+#### Without `-n` Flag
+
+When running without the flag, saved networks are used silently:
+- Workspace-specific config takes priority
+- Falls back to global config
+- Non-existent networks are skipped silently
+
 ### Environment Variables
 
 All environment variables are configured in `~/.ai-env` or passed at runtime:

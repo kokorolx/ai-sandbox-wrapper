@@ -84,8 +84,16 @@ ai-run aider
 **Goal:** AI tool uses MetaMCP tools
 
 **Setup:**
-1. Ensure `metamcp_metamcp-network` is joined (ai-run auto-detects)
+1. Join the MetaMCP Docker network at runtime
 2. Use `host.docker.internal:12008` in MCP configuration
+
+```bash
+# Interactive network selection
+ai-run opencode -n
+
+# Direct network specification
+ai-run opencode -n metamcp_metamcp-network
+```
 
 **In AI tool prompt:**
 ```
@@ -177,10 +185,13 @@ curl http://localhost:12008/health
 
 **Check network membership:**
 ```bash
-ai-network list
+docker network inspect metamcp_metamcp-network --format '{{range .Containers}}{{.Name}} {{end}}'
 ```
 
-Should show `metamcp_metamcp-network` as ✅
+If your container is missing, run with the network flag:
+```bash
+ai-run opencode -n metamcp_metamcp-network
+```
 
 ### "Name or service not known" for host.docker.internal
 
@@ -237,14 +248,8 @@ netstat -tlnp | grep 12008
 ## Quick Commands
 
 ```bash
-# Check network status
-ai-network list
-
-# Add MetaMCP network manually
-ai-network metamcp
-
-# Remove network
-ai-network remove metamcp_metamcp-network
+# Join MetaMCP network at runtime
+ai-run opencode -n metamcp_metamcp-network
 
 # Check if MetaMCP is running on host
 docker ps | grep metamcp
